@@ -79,19 +79,19 @@ struct LCTweakFolderView : View {
                                 .frame(width: 38, height: 38)
                                 .background(Color(red: 0.45, green: 0.53, blue: 0.83).opacity(0.13), in: RoundedRectangle(cornerRadius: 12))
                             VStack(alignment: .leading, spacing: 3) {
-                                Text("TWEAK LIBRARY")
+                                Text("插件管理")
                                     .font(.system(size: 10, weight: .bold, design: .rounded))
                                     .tracking(1.4)
                                     .foregroundStyle(.secondary)
-                                Text("Tweaks & Extensions")
+                                Text("扩展与功能组件")
                                     .font(.system(size: 20, weight: .bold, design: .rounded))
                             }
                             Spacer()
                         }
                         HStack(spacing: 8) {
-                            tweakOverviewPill(value: "\(tweakItems.filter { $0.isEnabled }.count)", label: "ENABLED", color: Color(red: 0.28, green: 0.62, blue: 0.52))
-                            tweakOverviewPill(value: "\(tweakItems.filter { !$0.isEnabled }.count)", label: "DISABLED", color: Color(red: 0.62, green: 0.58, blue: 0.78))
-                            tweakOverviewPill(value: "\(tweakItems.count)", label: "TOTAL", color: Color(red: 0.36, green: 0.51, blue: 0.82))
+                            tweakOverviewPill(value: "\(tweakItems.filter { $0.isEnabled }.count)", label: "已启用", color: Color(red: 0.28, green: 0.62, blue: 0.52))
+                            tweakOverviewPill(value: "\(tweakItems.filter { !$0.isEnabled }.count)", label: "已停用", color: Color(red: 0.62, green: 0.58, blue: 0.78))
+                            tweakOverviewPill(value: "\(tweakItems.count)", label: "全部", color: Color(red: 0.36, green: 0.51, blue: 0.82))
                         }
                     }
                     .padding(.vertical, 8)
