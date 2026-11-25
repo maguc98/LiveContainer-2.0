@@ -13,9 +13,33 @@
 @property(nonatomic) NSString* dataUUID;
 @property(nonatomic) int pid;
 @property(nonatomic) CGRect originalFrame;
-@property(nonatomic) UIBarButtonItem *maximizeButton;
+@property(nonatomic) UIButton *maximizeButton;
 @property(nonatomic) bool isAppTerminationRequested;
 @end
+
+static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UIColor *backgroundColor) {
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
+    UIImageSymbolConfiguration *configuration =
+        [UIImageSymbolConfiguration configurationWithPointSize:10.0 weight:UIImageSymbolWeightBold];
+    UIImage *image = [[UIImage systemImageNamed:symbolName] imageWithConfiguration:configuration];
+
+    [button setImage:image forState:UIControlStateNormal];
+    button.tintColor = UIColor.whiteColor;
+    button.backgroundColor = backgroundColor;
+    button.layer.cornerRadius = 12.0;
+    button.layer.borderWidth = 0.8;
+    button.layer.borderColor = [UIColor colorWithWhite:1.0 alpha:0.62].CGColor;
+    button.layer.shadowColor = [UIColor colorWithWhite:0.12 alpha:1.0].CGColor;
+    button.layer.shadowOpacity = 0.10;
+    button.layer.shadowRadius = 2.0;
+    button.layer.shadowOffset = CGSizeMake(0, 1);
+    button.translatesAutoresizingMaskIntoConstraints = NO;
+    [NSLayoutConstraint activateConstraints:@[
+        [button.widthAnchor constraintEqualToConstant:24.0],
+        [button.heightAnchor constraintEqualToConstant:24.0]
+    ]];
+    return button;
+}
 
 @implementation DecoratedAppSceneViewController
 - (instancetype)initWindowName:(NSString*)windowName bundleId:(NSString*)bundleId dataUUID:(NSString*)dataUUID rootVC:(UIViewController*)rootVC {
@@ -48,48 +72,119 @@
             return [self scaleSliderViewWithTitle:@"lc.multitask.scale".loc min:0.5 max:2.0 value:self.scaleRatio stepInterval:0.01];
         }]
     ];
-    
 
     __weak typeof(self) weakSelf = self;
-    [self.navigationItem setTitleMenuProvider:^UIMenu *(NSArray<UIMenuElement *> *suggestedActions){
-        if(!weakSelf.appSceneVC.isAppRunning) {
-            return [UIMenu menuWithTitle:NSLocalizedString(@"lc.multitaskAppWindow.appTerminated", nil) children:@[]];
-        } else {
-            NSString *pidText = [NSString stringWithFormat:@"PID: %d", weakSelf.pid];
-            return [UIMenu menuWithTitle:pidText children:menuItems];
-        }
-    }];
-    
-    UIImage *minimizeImage = [UIImage systemImageNamed:@"minus.circle"];
-    UIImageConfiguration *minimizeConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightMedium];
-    minimizeImage = [minimizeImage imageWithConfiguration:minimizeConfig];
-    UIBarButtonItem *minimizeButton = [[UIBarButtonItem alloc] initWithImage:minimizeImage style:UIBarButtonItemStylePlain target:self action:@selector(minimizeWindow)];
-    minimizeButton.tintColor = [UIColor systemYellowColor];
-    
-    NSString *maximizeImageName = _isMaximized ? @"arrow.down.right.and.arrow.up.left.circle" : @"arrow.up.left.and.arrow.down.right.circle";
-    UIImage *maximizeImage = [UIImage systemImageNamed:maximizeImageName];
-    UIImageConfiguration *maximizeConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightMedium];
-    maximizeImage = [maximizeImage imageWithConfiguration:maximizeConfig];
-    self.maximizeButton = [[UIBarButtonItem alloc] initWithImage:maximizeImage style:UIBarButtonItemStylePlain target:self action:@selector(maximizeWindow)];
-    self.maximizeButton.tintColor = [UIColor systemGreenColor];
-    
-    UIImage *closeImage = [UIImage systemImageNamed:@"xmark.circle"];
-    UIImageConfiguration *closeConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightMedium];
-    closeImage = [closeImage imageWithConfiguration:closeConfig];
-    UIBarButtonItem *closeButton = [[UIBarButtonItem alloc] initWithImage:closeImage style:UIBarButtonItemStylePlain target:self action:@selector(closeWindow)];
-    closeButton.tintColor = [UIColor systemRedColor];
-    
-    NSArray *barButtonItems = @[closeButton, self.maximizeButton, minimizeButton];
-    if([NSUserDefaults.lcSharedDefaults boolForKey:@"LCMultitaskBottomWindowBar"]) {
-        // resize handle overlaps the close button, so put the buttons on the left
-        self.navigationItem.leftBarButtonItems = barButtonItems;
-    } else {
-        self.navigationItem.rightBarButtonItems = barButtonItems;
-    }
 
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [self adjustNavigationBarButtonSpacingWithNegativeSpacing:-8.0 rightMargin:-4.0];
-    });
+    UIButton *closeButton = LCCreateMultitaskTrafficLightButton(
+        @"xmark",
+        [UIColor colorWithRed:0.94 green:0.34 blue:0.33 alpha:1.0]
+    );
+    [closeButton addTarget:self action:@selector(closeWindow) forControlEvents:UIControlEventTouchUpInside];
+
+    NSString *maximizeImageName = _isMaximized
+        ? @"arrow.down.right.and.arrow.up.left"
+        : @"arrow.up.left.and.arrow.down.right";
+    self.maximizeButton = LCCreateMultitaskTrafficLightButton(
+        maximizeImageName,
+        [UIColor colorWithRed:0.28 green:0.70 blue:0.46 alpha:1.0]
+    );
+    [self.maximizeButton addTarget:self action:@selector(maximizeWindow) forControlEvents:UIControlEventTouchUpInside];
+
+    UIButton *minimizeButton = LCCreateMultitaskTrafficLightButton(
+        @"minus",
+        [UIColor colorWithRed:0.98 green:0.72 blue:0.27 alpha:1.0]
+    );
+    [minimizeButton addTarget:self action:@selector(minimizeWindow) forControlEvents:UIControlEventTouchUpInside];
+
+    UIButton *appMenuButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    [appMenuButton setTitle:windowName forState:UIControlStateNormal];
+    [appMenuButton setImage:[UIImage systemImageNamed:@"chevron.down"] forState:UIControlStateNormal];
+    appMenuButton.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
+    appMenuButton.titleLabel.font = [UIFont systemFontOfSize:13.0 weight:UIFontWeightSemibold];
+    appMenuButton.titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+    appMenuButton.titleLabel.adjustsFontSizeToFitWidth = YES;
+    appMenuButton.titleLabel.minimumScaleFactor = 0.85;
+    appMenuButton.tintColor = [UIColor colorWithRed:0.25 green:0.32 blue:0.42 alpha:1.0];
+    appMenuButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentCenter;
+    appMenuButton.contentEdgeInsets = UIEdgeInsetsMake(0, 2, 0, 2);
+    appMenuButton.titleEdgeInsets = UIEdgeInsetsMake(0, 0, 0, 4);
+    appMenuButton.imageEdgeInsets = UIEdgeInsetsMake(0, -3, 0, 0);
+    appMenuButton.showsMenuAsPrimaryAction = YES;
+    appMenuButton.accessibilityLabel = windowName;
+    appMenuButton.accessibilityHint = NSLocalizedString(@"lc.multitaskAppWindow.appMenu", nil);
+    appMenuButton.menu = [UIMenu menuWithTitle:@"" children:@[
+        [UIDeferredMenuElement elementWithProvider:^(void (^completion)(NSArray<UIMenuElement *> *elements)) {
+            if (!weakSelf) {
+                completion(@[]);
+                return;
+            }
+            if (!weakSelf.appSceneVC.isAppRunning) {
+                UIAction *terminated = [UIAction actionWithTitle:NSLocalizedString(@"lc.multitaskAppWindow.appTerminated", nil)
+                                                            image:nil
+                                                       identifier:nil
+                                                          handler:^(__kindof UIAction * _Nonnull action) {}];
+                terminated.attributes = UIMenuElementAttributesDisabled;
+                completion(@[terminated]);
+                return;
+            }
+            UIAction *pidInfo = [UIAction actionWithTitle:[NSString stringWithFormat:@"PID: %d", weakSelf.pid]
+                                                     image:nil
+                                                identifier:nil
+                                                   handler:^(__kindof UIAction * _Nonnull action) {}];
+            pidInfo.attributes = UIMenuElementAttributesDisabled;
+            completion([@[pidInfo] arrayByAddingObjectsFromArray:menuItems]);
+        }]
+    ]];
+
+    UIView *pillContainer = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 244, 36)];
+    pillContainer.layer.cornerRadius = 18.0;
+    pillContainer.layer.shadowColor = [UIColor colorWithRed:0.30 green:0.40 blue:0.55 alpha:1.0].CGColor;
+    pillContainer.layer.shadowOpacity = 0.13;
+    pillContainer.layer.shadowRadius = 10.0;
+    pillContainer.layer.shadowOffset = CGSizeMake(0, 4);
+    pillContainer.backgroundColor = UIColor.clearColor;
+
+    UIVisualEffectView *pillGlass = [[UIVisualEffectView alloc] initWithEffect:
+        [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterialLight]];
+    pillGlass.frame = pillContainer.bounds;
+    pillGlass.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    pillGlass.layer.cornerRadius = 18.0;
+    pillGlass.layer.masksToBounds = YES;
+    pillGlass.layer.borderWidth = 1.0;
+    pillGlass.layer.borderColor = [UIColor colorWithWhite:1.0 alpha:0.82].CGColor;
+    pillGlass.contentView.backgroundColor = [UIColor colorWithRed:0.91 green:0.95 blue:0.99 alpha:0.20];
+    [pillContainer addSubview:pillGlass];
+
+    UIView *separator = [[UIView alloc] initWithFrame:CGRectZero];
+    separator.backgroundColor = [UIColor colorWithRed:0.61 green:0.68 blue:0.78 alpha:0.35];
+    separator.translatesAutoresizingMaskIntoConstraints = NO;
+    [NSLayoutConstraint activateConstraints:@[
+        [separator.widthAnchor constraintEqualToConstant:1.0],
+        [separator.heightAnchor constraintEqualToConstant:18.0]
+    ]];
+
+    UIStackView *controlStack = [[UIStackView alloc] initWithArrangedSubviews:@[
+        closeButton, self.maximizeButton, minimizeButton, separator, appMenuButton
+    ]];
+    controlStack.axis = UILayoutConstraintAxisHorizontal;
+    controlStack.alignment = UIStackViewAlignmentCenter;
+    controlStack.distribution = UIStackViewDistributionFill;
+    controlStack.spacing = 5.0;
+    controlStack.translatesAutoresizingMaskIntoConstraints = NO;
+    [pillGlass.contentView addSubview:controlStack];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [controlStack.leadingAnchor constraintEqualToAnchor:pillGlass.contentView.leadingAnchor constant:7.0],
+        [controlStack.trailingAnchor constraintEqualToAnchor:pillGlass.contentView.trailingAnchor constant:-7.0],
+        [controlStack.centerYAnchor constraintEqualToAnchor:pillGlass.contentView.centerYAnchor],
+        [appMenuButton.widthAnchor constraintLessThanOrEqualToConstant:112.0]
+    ]];
+    [appMenuButton setContentHuggingPriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
+    [appMenuButton setContentCompressionResistancePriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
+
+    self.navigationItem.titleView = pillContainer;
+    self.navigationItem.leftBarButtonItems = nil;
+    self.navigationItem.rightBarButtonItems = nil;
 
     return self;
 }
@@ -111,9 +206,13 @@
         self.view.frame = frame;
     }
     
-    // Navigation bar
+    // Navigation bar: keep the bar itself transparent so the centered glass island floats above the app.
     UINavigationBar *navigationBar = [[UINavigationBar alloc] initWithFrame:CGRectMake(0, 0, self.view.frame.size.width, navBarHeight)];
     navigationBar.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+    navigationBar.translucent = YES;
+    navigationBar.backgroundColor = UIColor.clearColor;
+    [navigationBar setBackgroundImage:[UIImage new] forBarMetrics:UIBarMetricsDefault];
+    navigationBar.shadowImage = [UIImage new];
     UINavigationItem *navigationItem = [[UINavigationItem alloc] initWithTitle:self.title];
     navigationBar.items = @[navigationItem];
     
@@ -296,9 +395,9 @@
             [self.view layoutIfNeeded];
         } completion:^(BOOL finished) {
             self.isMaximized = NO;
-            UIImage *maximizeImage = [UIImage systemImageNamed:@"arrow.up.left.and.arrow.down.right.circle"];
-            UIImageConfiguration *maximizeConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightMedium];
-            self.maximizeButton.image = [maximizeImage imageWithConfiguration:maximizeConfig];
+            UIImage *maximizeImage = [UIImage systemImageNamed:@"arrow.up.left.and.arrow.down.right"];
+            UIImageSymbolConfiguration *maximizeConfig = [UIImageSymbolConfiguration configurationWithPointSize:10.0 weight:UIImageSymbolWeightBold];
+            [self.maximizeButton setImage:[maximizeImage imageWithConfiguration:maximizeConfig] forState:UIControlStateNormal];
         }];
     } else {
         updateSettingsBlock = ^(UIMutableApplicationSceneSettings *settings) {
@@ -316,9 +415,9 @@
             
             [self.view layoutIfNeeded];
         } completion:^(BOOL finished) {
-            UIImage *restoreImage = [UIImage systemImageNamed:@"arrow.down.right.and.arrow.up.left.circle"];
-            UIImageConfiguration *restoreConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightMedium];
-            self.maximizeButton.image = [restoreImage imageWithConfiguration:restoreConfig];
+            UIImage *restoreImage = [UIImage systemImageNamed:@"arrow.down.right.and.arrow.up.left"];
+            UIImageSymbolConfiguration *restoreConfig = [UIImageSymbolConfiguration configurationWithPointSize:10.0 weight:UIImageSymbolWeightBold];
+            [self.maximizeButton setImage:[restoreImage imageWithConfiguration:restoreConfig] forState:UIControlStateNormal];
         }];
     }
 }
