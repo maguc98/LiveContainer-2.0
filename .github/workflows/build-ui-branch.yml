@@ -45,18 +45,44 @@ jobs:
             CODE_SIGNING_IDENTITY='' \
             | xcpretty
 
-      - name: Package unsigned IPA
+      - name: Package using the official SideStore integration script
+        working-directory: LiveContainer
+        shell: bash
+        env:
+          archive_path: ../build/LiveContainer
+          scheme: LiveContainer
         run: |
-          mkdir -p build/Payload
-          cp -R build/LiveContainer.xcarchive/Products/Applications/LiveContainer.app build/Payload/
-          cd build
-          zip -r LiveContainer-unsigned.ipa Payload
+          set -euo pipefail
+          sh .github/build_github.sh
 
-      - name: Upload IPA artifact
+          test -s "LiveContainer+SideStore.ipa"
+          test -s "LiveContainer.ipa"
+
+          rm -rf ../build/verify-sidestore
+          mkdir -p ../build/verify-sidestore
+          unzip -q "LiveContainer+SideStore.ipa" -d ../build/verify-sidestore
+          APP="../build/verify-sidestore/Payload/LiveContainer.app"
+
+          test -d "$APP/Frameworks/SideStoreApp.framework"
+          test -s "$APP/Frameworks/SideStoreApp.framework/SideStore"
+          test -d "$APP/PlugIns/LiveWidgetExtension.appex"
+          /usr/libexec/PlistBuddy -c 'Print :ALTAppGroups' "$APP/Info.plist" >/dev/null
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes' "$APP/Info.plist" >/dev/null
+          unzip -t "LiveContainer+SideStore.ipa" >/dev/null
+          echo "Validated SideStore-integrated IPA payload."
+
+      - name: Upload SideStore-integrated IPA
         uses: actions/upload-artifact@v4
         with:
-          name: LiveContainer-unsigned-IPA
-          path: build/LiveContainer-unsigned.ipa
+          name: LiveContainer-Plus-SideStore-IPA
+          path: LiveContainer/LiveContainer+SideStore.ipa
+          if-no-files-found: error
+
+      - name: Upload standard IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiveContainer-standard-IPA
+          path: LiveContainer/LiveContainer.ipa
           if-no-files-found: error
 
       - name: Upload archive artifact
@@ -64,3 +90,4 @@ jobs:
         with:
           name: LiveContainer-xcarchive
           path: build/LiveContainer.xcarchive
+          if-no-files-found: error
