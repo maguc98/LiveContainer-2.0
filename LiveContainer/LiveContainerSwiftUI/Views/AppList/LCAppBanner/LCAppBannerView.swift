@@ -44,6 +44,8 @@ final class LCAppBannerRootView: UIView {
         backgroundColor = .clear
         layer.cornerRadius = 22
         layer.cornerCurve = .continuous
+        layer.borderWidth = 0.8
+        layer.borderColor = UIColor.white.withAlphaComponent(0.72).cgColor
         clipsToBounds = true
 
         visualBackgroundView.translatesAutoresizingMaskIntoConstraints = false
@@ -157,7 +159,7 @@ final class LCAppBannerRootView: UIView {
         bit32Badge.backgroundColor = UIColor(named: "32BitBadgeColor") ?? .systemBlue
 
         visualBackgroundView.backgroundColor = dynamicColors
-            ? mainColor.withAlphaComponent(0.5)
+            ? mainColor.withAlphaComponent(0.13)
             : (UIColor(named: "AppBannerBG") ?? .secondarySystemBackground)
         runControl.update(
             color: accentColor,
