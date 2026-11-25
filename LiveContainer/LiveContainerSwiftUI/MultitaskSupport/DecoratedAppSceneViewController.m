@@ -111,7 +111,6 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
     appMenuButton.imageEdgeInsets = UIEdgeInsetsMake(0, -3, 0, 0);
     appMenuButton.showsMenuAsPrimaryAction = YES;
     appMenuButton.accessibilityLabel = windowName;
-    appMenuButton.accessibilityHint = NSLocalizedString(@"lc.multitaskAppWindow.appMenu", nil);
     appMenuButton.menu = [UIMenu menuWithTitle:@"" children:@[
         [UIDeferredMenuElement elementWithProvider:^(void (^completion)(NSArray<UIMenuElement *> *elements)) {
             if (!weakSelf) {
