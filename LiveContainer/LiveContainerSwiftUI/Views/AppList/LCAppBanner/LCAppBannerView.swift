@@ -157,7 +157,7 @@ final class LCAppBannerRootView: UIView {
         bit32Badge.backgroundColor = UIColor(named: "32BitBadgeColor") ?? .systemBlue
 
         visualBackgroundView.backgroundColor = dynamicColors
-            ? mainColor.withAlphaComponent(0.5)
+            ? mainColor.withAlphaComponent(0.18)
             : (UIColor(named: "AppBannerBG") ?? .secondarySystemBackground)
         runControl.update(
             color: accentColor,
