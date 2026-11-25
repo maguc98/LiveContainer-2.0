@@ -131,13 +131,14 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 })
                 .hidden()
                 
-                LazyVStack {
+                LazyVStack(spacing: 10) {
                     ForEach(filteredApps, id: \.self) { app in
                         LCAppBanner(appModel: app, delegate: self)
                     }
                     .transition(.scale)
                 }
-                .padding()
+                .padding(.horizontal, 14)
+                .padding(.top, 12)
                 .animation(searchContext.isTyping ? nil : .easeInOut, value: filteredApps)
 
                 VStack {
@@ -209,9 +210,23 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 if !didAppear {
                     onAppear()
                 }
+                handleRequestedQuickLaunchApp()
             }
             
+            .background {
+                ZStack(alignment: .top) {
+                    Color(uiColor: .systemGroupedBackground)
+                    LinearGradient(
+                        colors: [Color.blue.opacity(0.07), Color.purple.opacity(0.045), Color.clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .frame(height: 320)
+                }
+                .ignoresSafeArea()
+            }
             .navigationTitle("lc.appList.myApps".loc)
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     if sharedModel.multiLCStatus != 2 {
@@ -431,7 +446,25 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 Task { await installFromUrl(urlStr: installUrl.absoluteString) }
             }
         }
-        .searchable(text: $searchContext.query)
+        .searchable(text: $searchContext.query, prompt: "搜索应用")
+        .onChange(of: sharedModel.requestedHomeAction) { action in
+            guard let action else { return }
+            sharedModel.requestedHomeAction = nil
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                switch action {
+                case .chooseIPA:
+                    choosingIPA = true
+                case .installFromURL:
+                    Task { await startInstallFromUrl() }
+                case .openBrowser:
+                    Task { await onOpenWebViewTapped() }
+                }
+            }
+        }
+        .onChange(of: sharedModel.requestedQuickLaunchApp) { app in
+            guard app != nil, didAppear, sharedModel.selectedTab == .apps else { return }
+            handleRequestedQuickLaunchApp()
+        }
 
     }
     
@@ -493,6 +526,36 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         }
         didAppear = true
     }
+
+    func handleRequestedQuickLaunchApp() {
+        guard sharedModel.selectedTab == .apps,
+              let app = sharedModel.requestedQuickLaunchApp else {
+            return
+        }
+        sharedModel.requestedQuickLaunchApp = nil
+
+        Task {
+            if app.appInfo.isLocked && !sharedModel.isHiddenAppUnlocked {
+                do {
+                    if !(try await LCUtils.authenticateUser()) {
+                        return
+                    }
+                } catch {
+                    errorInfo = error.localizedDescription
+                    errorShow = true
+                    return
+                }
+            }
+
+            do {
+                try await app.runApp()
+            } catch {
+                errorInfo = error.localizedDescription
+                errorShow = true
+            }
+        }
+    }
+
     
     
     func openWebView(urlString: String) async {
