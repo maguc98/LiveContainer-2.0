@@ -26,7 +26,7 @@ struct LCHomeOverviewView: View {
                     .frame(width: 29, height: 29)
                     .background(blue.opacity(0.13), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-                Text("LIVE CONTAINER")
+                Text("应用管理中心")
                     .font(.system(size: 10, weight: .bold, design: .rounded))
                     .tracking(1.5)
                     .foregroundColor(.secondary)
@@ -37,7 +37,7 @@ struct LCHomeOverviewView: View {
                     Circle()
                         .fill(sideStoreAvailable ? mint : Color.secondary.opacity(0.55))
                         .frame(width: 6, height: 6)
-                    Text(sideStoreAvailable ? "SIDESTORE READY" : "SIDESTORE NOT FOUND")
+                    Text(sideStoreAvailable ? "应用商店已就绪" : "未检测到应用商店")
                         .font(.system(size: 8, weight: .bold, design: .rounded))
                         .tracking(0.55)
                         .lineLimit(1)
@@ -57,7 +57,7 @@ struct LCHomeOverviewView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
 
-                    Text("YOUR PERSONAL APP SPACE")
+                    Text("管理、安装与启动应用")
                         .font(.system(size: 9, weight: .semibold, design: .rounded))
                         .tracking(1.1)
                         .foregroundColor(.secondary)
@@ -77,17 +77,17 @@ struct LCHomeOverviewView: View {
                             .background(LinearGradient(colors: [blue, lavender], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
                             .shadow(color: blue.opacity(0.24), radius: 9, x: 0, y: 5)
                     }
-                    .accessibilityLabel("add")
+                    .accessibilityLabel("添加应用")
                 }
             }
 
             HStack(spacing: 9) {
-                metricTile(title: "APPS", value: "\(appCount)", symbol: "square.grid.2x2.fill", tint: blue)
+                metricTile(title: "应用", value: "\(appCount)", symbol: "square.grid.2x2.fill", tint: blue)
 
-                metricTile(title: "HIDDEN", value: "\(hiddenCount)", symbol: "eye.slash.fill", tint: lavender)
+                metricTile(title: "隐藏", value: "\(hiddenCount)", symbol: "eye.slash.fill", tint: lavender)
 
                 Button(action: onOpenSideStore) {
-                    metricTile(title: "SIDESTORE", value: sideStoreAvailable ? "READY" : "—", symbol: "arrow.down.app.fill", tint: mint)
+                    metricTile(title: "应用商店", value: sideStoreAvailable ? "已就绪" : "—", symbol: "arrow.down.app.fill", tint: mint)
                 }
                 .buttonStyle(.plain)
                 .disabled(!sideStoreAvailable)
