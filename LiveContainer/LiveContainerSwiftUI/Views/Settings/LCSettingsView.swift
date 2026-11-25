@@ -388,7 +388,7 @@ struct LCSettingsView: View {
                     }
                 }
             }
-            .scrollContentBackground(.hidden)
+            .modifier(LCSettingsScrollBackgroundModifier())
             .background {
                 ZStack(alignment: .top) {
                     Color(uiColor: .systemGroupedBackground)
