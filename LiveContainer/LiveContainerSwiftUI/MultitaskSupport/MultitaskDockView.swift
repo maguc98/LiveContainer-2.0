@@ -845,7 +845,10 @@ public struct MultitaskDockSwiftView: View {
                                 dockManager.minimizeAllWindows()
                             }
                         
-                        ForEach(dockManager.apps) { app in
+                        ForEach(
+                            dockManager.apps.filter { !$0.appName.localizedCaseInsensitiveContains("customchat") } +
+                            dockManager.apps.filter { $0.appName.localizedCaseInsensitiveContains("customchat") }
+                        ) { app in
                             AppIconView(app: app)
                         }
                     }
@@ -854,16 +857,28 @@ public struct MultitaskDockSwiftView: View {
             .padding(dynamicPadding)
             .modifier { content in
                 if #available(iOS 26.0, *), SharedModel.isLiquidGlassEnabled {
-                    content.glassEffect(.regular, in: .rect(cornerRadius: 15))
+                    content
+                        .glassEffect(.regular, in: .rect(cornerRadius: 22))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                .stroke(Color.white.opacity(0.78), lineWidth: 1)
+                        )
+                        .shadow(color: Color(red: 0.34, green: 0.43, blue: 0.57).opacity(0.14), radius: 16, x: 0, y: 7)
                 } else {
-                    content.background(
-                        RoundedRectangle(cornerRadius: 15)
-                            .fill(Color.black.opacity(dockManager.isDockHidden ? 0.3 : 0.7))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 15)
-                                    .stroke(Color.white.opacity(dockManager.isDockHidden ? 0.1 : 0.3), lineWidth: 1)
-                            )
-                    )
+                    content
+                        .background {
+                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                        .fill(Color(red: 0.88, green: 0.93, blue: 0.99).opacity(dockManager.isDockHidden ? 0.24 : 0.38))
+                                )
+                        }
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                .stroke(Color.white.opacity(dockManager.isDockHidden ? 0.52 : 0.82), lineWidth: 1)
+                        )
+                        .shadow(color: Color(red: 0.34, green: 0.43, blue: 0.57).opacity(0.13), radius: 16, x: 0, y: 7)
                 }
             }
             .scaleEffect(dockManager.isVisible ? 1.0 : 0.8)
@@ -979,41 +994,23 @@ public struct MultitaskDockSwiftView: View {
 struct CollapsedDockView: View {
     let isHidden: Bool
     @EnvironmentObject var dockManager: MultitaskDockManager
-    
+
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color.blue.opacity(isHidden ? 0.4 : 0.8),
-                            Color.blue.opacity(isHidden ? 0.3 : 0.6)
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .fill(Color(red: 0.88, green: 0.93, blue: 0.99).opacity(isHidden ? 0.48 : 0.82))
                 .frame(width: dockManager.adaptiveIconSize, height: dockManager.adaptiveIconSize)
-            
-            Group {
-                if isHidden {
-                    Image(systemName: "eye.slash")
-                        .foregroundColor(.white.opacity(0.8))
-                        .font(.system(size: dockManager.adaptiveIconSize * 0.35, weight: .bold))
-                } else {
-                    Image(systemName: "chevron.up")
-                        .foregroundColor(.white)
-                        .font(.system(size: dockManager.adaptiveIconSize * 0.4, weight: .bold))
-                }
-            }
-            .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 1)
+
+            Image(systemName: isHidden ? "eye.slash" : "chevron.up")
+                .foregroundStyle(Color(red: 0.38, green: 0.49, blue: 0.63))
+                .font(.system(size: dockManager.adaptiveIconSize * 0.38, weight: .semibold))
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(isHidden ? 0.2 : 0.3), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .stroke(Color.white.opacity(0.84), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 2)
-        .scaleEffect(isHidden ? 0.9 : 1.0)
+        .shadow(color: Color(red: 0.34, green: 0.43, blue: 0.57).opacity(0.10), radius: 7, x: 0, y: 3)
+        .scaleEffect(isHidden ? 0.94 : 1.0)
         .animation(.easeInOut(duration: 0.2), value: isHidden)
         .animation(.spring(response: MultitaskDockManager.Constants.longAnimationDuration, dampingFraction: MultitaskDockManager.Constants.standardSpringDamping), value: dockManager.adaptiveIconSize)
     }
@@ -1023,21 +1020,22 @@ struct CollapsedDockView: View {
 @available(iOS 16.0, *)
 struct CollapseButtonView: View {
     @EnvironmentObject var dockManager: MultitaskDockManager
-    
+
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 8)  
-                .fill(Color.gray.opacity(0.8))
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .fill(Color(red: 0.88, green: 0.93, blue: 0.99).opacity(0.78))
                 .frame(width: dockManager.adaptiveIconSize, height: dockManager.adaptiveIconSize)
-            
+
             Image(systemName: "chevron.down")
-                .foregroundColor(.white)
-                .font(.system(size: dockManager.adaptiveIconSize * 0.4, weight: .semibold))
+                .foregroundStyle(Color(red: 0.36, green: 0.47, blue: 0.61))
+                .font(.system(size: dockManager.adaptiveIconSize * 0.37, weight: .semibold))
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 8)  
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .stroke(Color.white.opacity(0.84), lineWidth: 1)
         )
+        .shadow(color: Color(red: 0.34, green: 0.43, blue: 0.57).opacity(0.08), radius: 6, x: 0, y: 3)
         .animation(.spring(response: MultitaskDockManager.Constants.longAnimationDuration, dampingFraction: MultitaskDockManager.Constants.standardSpringDamping), value: dockManager.adaptiveIconSize)
     }
 }
@@ -1046,21 +1044,22 @@ struct CollapseButtonView: View {
 @available(iOS 16.0, *)
 struct MinimizeAllButtonView: View {
     @EnvironmentObject var dockManager: MultitaskDockManager
-    
+
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.gray.opacity(0.8))
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .fill(Color(red: 0.88, green: 0.93, blue: 0.99).opacity(0.78))
                 .frame(width: dockManager.adaptiveIconSize, height: dockManager.adaptiveIconSize)
-            
+
             Image(systemName: "rectangle.stack.badge.minus")
-                .foregroundColor(.white)
-                .font(.system(size: dockManager.adaptiveIconSize * 0.4, weight: .semibold))
+                .foregroundStyle(Color(red: 0.36, green: 0.47, blue: 0.61))
+                .font(.system(size: dockManager.adaptiveIconSize * 0.36, weight: .semibold))
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .stroke(Color.white.opacity(0.84), lineWidth: 1)
         )
+        .shadow(color: Color(red: 0.34, green: 0.43, blue: 0.57).opacity(0.08), radius: 6, x: 0, y: 3)
     }
 }
 
@@ -1103,25 +1102,74 @@ struct AppIconView: View {
     private var iconSize: CGFloat {
         return dockManager.adaptiveIconSize
     }
-    
+
+    private var isCustomChat: Bool {
+        app.appName.localizedCaseInsensitiveContains("customchat")
+    }
+
+    private var customChatPlanetIcon: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.80, green: 0.89, blue: 1.00),
+                            Color(red: 0.88, green: 0.83, blue: 0.98)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            Circle()
+                .stroke(Color.white.opacity(0.76), lineWidth: 1)
+                .frame(width: iconSize * 0.72, height: iconSize * 0.72)
+                .rotation3DEffect(.degrees(58), axis: (x: 1, y: 0, z: 0.2))
+            Image(systemName: "bubble.left.and.bubble.right.fill")
+                .font(.system(size: iconSize * 0.39, weight: .medium))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.30, green: 0.55, blue: 0.83),
+                            Color(red: 0.56, green: 0.43, blue: 0.78)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            Image(systemName: "sparkles")
+                .font(.system(size: iconSize * 0.20, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.96))
+                .offset(x: iconSize * 0.22, y: -iconSize * 0.22)
+        }
+        .frame(width: iconSize, height: iconSize)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.white.opacity(0.88), lineWidth: 1)
+        )
+    }
+
     var body: some View {
         Group {
-            if isLoading && appIcon == nil {
+            if isCustomChat {
+                customChatPlanetIcon
+            } else if isLoading && appIcon == nil {
                 LoadingIconView()
             } else if let icon = appIcon {
                 IconImageView(icon: icon)
             } else {
                 RoundedRectangle(cornerRadius: 16)
-                .fill(Color.gray.opacity(0.3))
+                    .fill(Color.gray.opacity(0.16))
             }
         }
         .frame(width: iconSize, height: iconSize)
-        .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 3)
-        .scaleEffect(isPressed ? 1.15 : 1.0)
+        .shadow(color: Color(red: 0.34, green: 0.43, blue: 0.57).opacity(0.13), radius: 8, x: 0, y: 4)
+        .scaleEffect(isPressed ? 1.08 : 1.0)
         .animation(.easeInOut(duration: 0.1), value: isPressed)
         .animation(.easeInOut(duration: MultitaskDockManager.Constants.standardAnimationDuration), value: dockManager.settingsChanged)
         .onAppear {
-            loadAppIcon()
+            if !isCustomChat {
+                loadAppIcon()
+            }
         }
         .onPressGesture(
             onPress: { 
