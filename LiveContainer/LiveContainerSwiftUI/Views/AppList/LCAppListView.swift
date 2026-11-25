@@ -210,6 +210,7 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 if !didAppear {
                     onAppear()
                 }
+                handleRequestedHomeAction()
                 handleRequestedQuickLaunchApp()
             }
             
@@ -447,19 +448,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             }
         }
         .searchable(text: $searchContext.query, prompt: "搜索应用")
-        .onChange(of: sharedModel.requestedHomeAction) { action in
-            guard let action else { return }
-            sharedModel.requestedHomeAction = nil
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                switch action {
-                case .chooseIPA:
-                    choosingIPA = true
-                case .installFromURL:
-                    Task { await startInstallFromUrl() }
-                case .openBrowser:
-                    Task { await onOpenWebViewTapped() }
-                }
-            }
+        .onChange(of: sharedModel.requestedHomeAction) { _ in
+            handleRequestedHomeAction()
         }
         .onChange(of: sharedModel.requestedQuickLaunchApp) { app in
             guard app != nil, didAppear, sharedModel.selectedTab == .apps else { return }
@@ -525,6 +515,25 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             app.delegate = self
         }
         didAppear = true
+    }
+
+    func handleRequestedHomeAction() {
+        guard sharedModel.selectedTab == .apps,
+              let action = sharedModel.requestedHomeAction else {
+            return
+        }
+        sharedModel.requestedHomeAction = nil
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            switch action {
+            case .chooseIPA:
+                choosingIPA = true
+            case .installFromURL:
+                Task { await startInstallFromUrl() }
+            case .openBrowser:
+                Task { await onOpenWebViewTapped() }
+            }
+        }
     }
 
     func handleRequestedQuickLaunchApp() {
