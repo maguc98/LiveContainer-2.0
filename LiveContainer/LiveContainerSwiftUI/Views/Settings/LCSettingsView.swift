@@ -32,6 +32,17 @@ enum JITEnablerType : Int, CaseIterable, Identifiable {
     }
 }
 
+
+private struct LCSettingsScrollBackgroundModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.0, *) {
+            content.modifier(LCSettingsScrollBackgroundModifier())
+        } else {
+            content
+        }
+    }
+}
+
 struct LCSettingsView: View {
     @State var errorShow = false
     @State var errorInfo = ""
