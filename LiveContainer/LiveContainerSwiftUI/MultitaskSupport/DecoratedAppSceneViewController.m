@@ -44,7 +44,7 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
 @implementation DecoratedAppSceneViewController
 - (instancetype)initWindowName:(NSString*)windowName bundleId:(NSString*)bundleId dataUUID:(NSString*)dataUUID rootVC:(UIViewController*)rootVC {
     self = [super initWithNibName:nil bundle:nil];
-    self.view = [[UIStackView alloc] initWithFrame:self.view.frame];
+    self.view = [[UIView alloc] initWithFrame:self.view.frame];
     [MultitaskDockManager.shared.windowHostingView addSubview:self.view];
     [rootVC addChildViewController:self];
     
@@ -216,7 +216,6 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
     UINavigationItem *navigationItem = [[UINavigationItem alloc] initWithTitle:self.title];
     navigationBar.items = @[navigationItem];
     
-    self.view.axis = UILayoutConstraintAxisVertical;
     self.view.backgroundColor = UIColor.systemBackgroundColor;
     self.view.layer.cornerRadius = 10;
     self.view.layer.masksToBounds = YES;
@@ -228,17 +227,7 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
         [self.view addSubview:self.navigationBar];
     }
     
-    CGRect contentFrame = CGRectMake(0, 0, self.view.frame.size.width, self.view.frame.size.height);
-    UIView *fixedPositionContentView = [[UIView alloc] initWithFrame:contentFrame];
-    self.contentView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    [self.view addArrangedSubview:fixedPositionContentView];
-    [self.view sendSubviewToBack:fixedPositionContentView];
-    
-    self.contentView = [[UIView alloc] initWithFrame:contentFrame];
-    self.contentView.layer.anchorPoint = self.contentView.layer.position = CGPointMake(0, 0);
-    self.contentView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    [fixedPositionContentView addSubview:self.contentView];
-    
+
     UIPanGestureRecognizer *moveGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(moveWindow:)];
     moveGesture.minimumNumberOfTouches = 1;
     moveGesture.maximumNumberOfTouches = 1;
@@ -260,11 +249,14 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
     [self.view insertSubview:_appSceneVC.view atIndex:0];
     _appSceneVC.view.translatesAutoresizingMaskIntoConstraints = NO;
     
-    [self updateVerticalConstraints];
+    // The app scene always occupies the entire window. The toolbar is a separate overlay.
     [NSLayoutConstraint activateConstraints:@[
         [_appSceneVC.view.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-        [_appSceneVC.view.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor]
+        [_appSceneVC.view.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+        [_appSceneVC.view.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+        [_appSceneVC.view.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
     ]];
+    [self updateVerticalConstraints];
     
     
     NSUserDefaults *defaults = NSUserDefaults.lcSharedDefaults;
@@ -578,7 +570,7 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
     self.navigationBar.alpha = hideWindowBar ? 0.0 : 1.0;
     self.navigationBar.hidden = hideWindowBar;
 
-    // The toolbar is a floating overlay: keep app content constrained to the full window.
+    // Position the toolbar as an overlay only; never alter the app scene's full-window constraints.
     CGRect navigationBarFrame = CGRectMake(
         0.0,
         bottomWindowBar ? MAX(0.0, CGRectGetHeight(self.view.bounds) - navBarHeight) : 0.0,
@@ -588,19 +580,12 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
     self.navigationBar.autoresizingMask = UIViewAutoresizingFlexibleWidth |
         (bottomWindowBar ? UIViewAutoresizingFlexibleTopMargin : UIViewAutoresizingFlexibleBottomMargin);
 
-    [NSLayoutConstraint deactivateConstraints:self.activatedVerticalConstraints ?: @[]];
-    self.activatedVerticalConstraints = @[
-        [self.appSceneVC.view.topAnchor constraintEqualToAnchor:self.view.topAnchor],
-        [self.appSceneVC.view.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
-    ];
-    [NSLayoutConstraint activateConstraints:self.activatedVerticalConstraints];
-
     [UIView animateWithDuration:0.3 animations:^{
         self.navigationBar.frame = navigationBarFrame;
         [self.view layoutIfNeeded];
     }];
 
-    // Preserve the existing maximized-window safe-area behavior.
+    // Keep the existing maximized safe-area policy while updating the app's scene frame.
     if(self.isMaximized) {
         self.appSceneVC.shouldSkipDebounceOnce = YES;
         __weak typeof(self) weakSelf = self;
@@ -609,7 +594,6 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
         }];
     }
 }
-
 - (UIEdgeInsets)updateMaximizedSafeAreaWithSettings:(UIMutableApplicationSceneSettings *)settings {
     BOOL bottomWindowBar = [NSUserDefaults.lcSharedDefaults boolForKey:@"LCMultitaskBottomWindowBar"];
     UIEdgeInsets safeAreaInsets = self.view.window.safeAreaInsets;
