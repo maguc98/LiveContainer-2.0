@@ -23,32 +23,41 @@ struct LCTabView: View {
     
     var body: some View {
         TabView(selection: $sharedModel.selectedTab) {
+            LCHomeView()
+                .tabItem {
+                    Label("首页", systemImage: "house.fill")
+                }
+                .tag(LCTabIdentifier.home)
+
+            LCAppListView()
+                .tabItem {
+                    Label("lc.tabView.apps".loc, systemImage: "square.stack.3d.up.fill")
+                }
+                .tag(LCTabIdentifier.apps)
+
+            // Keep the original Sources and Tweaks destinations visible.
             if DataManager.shared.model.multiLCStatus != 2 {
                 LCSourcesView()
                     .tabItem {
                         Label("lc.tabView.sources".loc, systemImage: "books.vertical")
                     }
                     .tag(LCTabIdentifier.sources)
-            }
-            LCAppListView()
-                .tabItem {
-                    Label("lc.tabView.apps".loc, systemImage: "square.stack.3d.up.fill")
-                }
-                .tag(LCTabIdentifier.apps)
-            if DataManager.shared.model.multiLCStatus != 2 {
+
                 LCTweaksView()
-                    .tabItem{
+                    .tabItem {
                         Label("lc.tabView.tweaks".loc, systemImage: "wrench.and.screwdriver")
                     }
                     .tag(LCTabIdentifier.tweaks)
             }
-            
+
             LCSettingsView()
                 .tabItem {
                     Label("lc.tabView.settings".loc, systemImage: "gearshape.fill")
                 }
                 .tag(LCTabIdentifier.settings)
         }
+        .tint(Color(red: 0.29, green: 0.43, blue: 0.94))
+        .background(Color(uiColor: .systemGroupedBackground))
         .downloadAlert(helper: downloadHelper)
         .environmentObject(downloadHelper)
         .alert("lc.common.error".loc, isPresented: $errorShow){
@@ -270,5 +279,317 @@ struct LCTabView: View {
             return
         }
         LCUtils.appGroupUserDefault.set(bookmark, forKey: "LCLaunchExtensionPrivateDocBookmark")
+    }
+}
+
+
+// MARK: - LiveContainer Home
+
+private enum LCHomePalette {
+    static let blue = Color(red: 0.28, green: 0.48, blue: 0.96)
+    static let purple = Color(red: 0.58, green: 0.43, blue: 0.91)
+    static let muted = Color.secondary
+}
+
+private struct LCHomeSurface: ViewModifier {
+    var radius: CGFloat = 22
+
+    func body(content: Content) -> some View {
+        content
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .stroke(Color.white.opacity(0.72), lineWidth: 0.8)
+            }
+            .shadow(color: Color.black.opacity(0.045), radius: 14, x: 0, y: 6)
+    }
+}
+
+private struct LCHomeQuickActionTile: View {
+    let title: String
+    let subtitle: String
+    let symbol: String
+    let tint: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 12) {
+                Image(systemName: symbol)
+                    .font(.system(size: 21, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 42, height: 42)
+                    .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                    Text(subtitle)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 108, alignment: .leading)
+            .padding(12)
+            .modifier(LCHomeSurface(radius: 20))
+            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct LCHomeView: View {
+    @EnvironmentObject private var sharedModel: SharedModel
+    @AppStorage("darkModeIcon", store: LCUtils.appGroupUserDefault) private var darkModeIcon = false
+
+    private let quickLaunchColumns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
+    private let actionColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    header
+                    quickActions
+                    quickLaunch
+                    if #available(iOS 16.0, *) {
+                        LCHomeMultitaskSummary()
+                    }
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 14)
+                .padding(.bottom, 28)
+            }
+            .background {
+                ZStack(alignment: .top) {
+                    Color(uiColor: .systemGroupedBackground)
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.78, green: 0.84, blue: 1.0).opacity(0.42),
+                            Color(red: 0.88, green: 0.80, blue: 0.98).opacity(0.30),
+                            Color.clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .frame(height: 420)
+                }
+                .ignoresSafeArea()
+            }
+            .navigationBarHidden(true)
+        }
+        .navigationViewStyle(StackNavigationViewStyle())
+    }
+
+    private var header: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(LinearGradient(colors: [LCHomePalette.blue, LCHomePalette.purple], startPoint: .topLeading, endPoint: .bottomTrailing))
+                Image(systemName: "square.stack.3d.up.fill")
+                    .font(.system(size: 27, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 66, height: 66)
+            .shadow(color: LCHomePalette.blue.opacity(0.22), radius: 12, x: 0, y: 6)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("LiveContainer 2.0")
+                    .font(.system(size: 23, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                Text("在 iOS 上运行与管理应用")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 4)
+
+            Button {
+                sharedModel.selectedTab = .settings
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .frame(width: 42, height: 42)
+                    .background(.regularMaterial, in: Circle())
+                    .overlay(Circle().stroke(Color.white.opacity(0.7), lineWidth: 0.8))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("设置")
+        }
+        .padding(.top, 8)
+    }
+
+    private var quickActions: some View {
+        LazyVGrid(columns: actionColumns, spacing: 10) {
+            LCHomeQuickActionTile(
+                title: "导入 IPA",
+                subtitle: "从文件选择",
+                symbol: "square.and.arrow.down",
+                tint: LCHomePalette.blue
+            ) {
+                openAppList(action: .chooseIPA)
+            }
+
+            LCHomeQuickActionTile(
+                title: "在线安装",
+                subtitle: "输入安装链接",
+                symbol: "link",
+                tint: Color(red: 0.27, green: 0.68, blue: 0.52)
+            ) {
+                openAppList(action: .installFromURL)
+            }
+
+            LCHomeQuickActionTile(
+                title: "内置浏览器",
+                subtitle: "网页与协议跳转",
+                symbol: "safari",
+                tint: LCHomePalette.purple
+            ) {
+                openAppList(action: .openBrowser)
+            }
+        }
+    }
+
+    private var quickLaunch: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("快速启动")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.primary)
+                    Text("\(sharedModel.apps.count) 个可用应用")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("全部应用") {
+                    sharedModel.selectedTab = .apps
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(LCHomePalette.blue)
+                .buttonStyle(.plain)
+            }
+
+            if sharedModel.apps.isEmpty {
+                Button {
+                    openAppList(action: .chooseIPA)
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "plus.app")
+                            .font(.system(size: 24))
+                            .foregroundStyle(LCHomePalette.blue)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("还没有应用")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.primary)
+                            Text("导入 IPA 后，应用会显示在这里")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(16)
+                    .modifier(LCHomeSurface())
+                }
+                .buttonStyle(.plain)
+            } else {
+                LazyVGrid(columns: quickLaunchColumns, spacing: 12) {
+                    ForEach(Array(sharedModel.apps.prefix(4)), id: \.self) { app in
+                        Button {
+                            sharedModel.requestedQuickLaunchApp = app
+                            sharedModel.selectedTab = .apps
+                        } label: {
+                            VStack(spacing: 7) {
+                                Image(uiImage: app.appInfo.iconIsDarkIcon(darkModeIcon) ?? UIImage())
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 54, height: 54)
+                                    .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                                    .shadow(color: Color.black.opacity(0.10), radius: 5, x: 0, y: 3)
+                                Text(app.displayName)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .padding(.vertical, 8)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("启动 \(app.displayName)")
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .modifier(LCHomeSurface())
+            }
+        }
+    }
+
+    private func openAppList(action: LCHomeAction) {
+        sharedModel.requestedHomeAction = action
+        sharedModel.selectedTab = .apps
+    }
+}
+
+@available(iOS 16.0, *)
+private struct LCHomeMultitaskSummary: View {
+    @ObservedObject private var dockManager = MultitaskDockManager.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("多任务")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(.primary)
+                    Text(dockManager.apps.isEmpty ? "窗口运行状态" : "\(dockManager.apps.count) 个窗口正在运行")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "rectangle.on.rectangle")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(LCHomePalette.blue)
+                    .frame(width: 40, height: 40)
+                    .background(LCHomePalette.blue.opacity(0.10), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            }
+
+            if dockManager.apps.isEmpty {
+                Text("暂无运行中的多任务窗口")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 5)
+            } else {
+                HStack(spacing: 10) {
+                    ForEach(Array(dockManager.apps.prefix(3)), id: \.id) { app in
+                        HStack(spacing: 7) {
+                            Image(systemName: "app.fill")
+                                .font(.system(size: 13))
+                                .foregroundStyle(LCHomePalette.blue)
+                            Text(app.appName)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 9)
+                        .background(Color.primary.opacity(0.045), in: Capsule())
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .modifier(LCHomeSurface())
     }
 }
