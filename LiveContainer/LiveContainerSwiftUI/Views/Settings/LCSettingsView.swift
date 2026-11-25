@@ -90,13 +90,13 @@ struct LCSettingsView: View {
                             .frame(width: 44, height: 44)
                             .background(Color(red: 0.34, green: 0.50, blue: 0.84).opacity(0.13), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("LIVE CONTAINER")
+                            Text("应用设置")
                                 .font(.system(size: 9, weight: .bold, design: .rounded))
                                 .tracking(1.4)
                                 .foregroundStyle(.secondary)
-                            Text("Settings & Control")
+                            Text("设置与控制")
                                 .font(.system(size: 20, weight: .bold, design: .rounded))
-                            Text("Configure JIT, interface, and app behavior.")
+                            Text("配置运行环境、界面和应用行为")
                                 .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
                         }
