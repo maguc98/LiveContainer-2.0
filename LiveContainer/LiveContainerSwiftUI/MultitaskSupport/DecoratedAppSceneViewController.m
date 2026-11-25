@@ -163,7 +163,7 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
     ]];
 
     UIStackView *controlStack = [[UIStackView alloc] initWithArrangedSubviews:@[
-        closeButton, self.maximizeButton, minimizeButton, separator, appMenuButton
+        closeButton, minimizeButton, self.maximizeButton, separator, appMenuButton
     ]];
     controlStack.axis = UILayoutConstraintAxisHorizontal;
     controlStack.alignment = UIStackViewAlignmentCenter;
@@ -191,7 +191,8 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
 - (void)setupDecoratedView {
     CGFloat navBarHeight = 44;
     BOOL isLandscape = UIInterfaceOrientationIsLandscape(UIApp.statusBarOrientation);
-    CGRect frame = CGRectMake(0, 0, isLandscape ? 480 : 320, (isLandscape ? 320 : 480) + navBarHeight);
+    // The floating toolbar overlays the app and no longer contributes to the window's content height.
+    CGRect frame = CGRectMake(0, 0, isLandscape ? 480 : 320, isLandscape ? 320 : 480);
     CGPoint rootViewCenter = self.view.superview.center;
     frame.origin = CGPointMake(rootViewCenter.x - frame.size.width / 2, rootViewCenter.y - frame.size.height / 2);
     
@@ -223,17 +224,14 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
     self.navigationBar = navigationBar;
     self.navigationItem = navigationBar.items.firstObject;
     if (!self.navigationBar.superview) {
-        [self.view addArrangedSubview:self.navigationBar];
+        // Keep the navigation bar out of the vertical stack so it floats above app content.
+        [self.view addSubview:self.navigationBar];
     }
     
-    CGRect contentFrame = CGRectMake(0, 0, self.view.frame.size.width, self.view.frame.size.height - navBarHeight);
+    CGRect contentFrame = CGRectMake(0, 0, self.view.frame.size.width, self.view.frame.size.height);
     UIView *fixedPositionContentView = [[UIView alloc] initWithFrame:contentFrame];
     self.contentView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    if([NSUserDefaults.lcSharedDefaults boolForKey:@"LCMultitaskBottomWindowBar"]) {
-        [self.view insertArrangedSubview:fixedPositionContentView atIndex:0];
-    } else {
-        [self.view addArrangedSubview:fixedPositionContentView];
-    }
+    [self.view addArrangedSubview:fixedPositionContentView];
     [self.view sendSubviewToBack:fixedPositionContentView];
     
     self.contentView = [[UIView alloc] initWithFrame:contentFrame];
@@ -487,7 +485,7 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
         } else {
             [self updateWindowedFrameWithSettings:settings];
         }
-        CGRect newFrame = CGRectMake(0, 0, self.view.bounds.size.width, self.view.bounds.size.height - self.navigationBar.frame.size.height/self.scaleRatio);
+        CGRect newFrame = CGRectMake(0, 0, self.view.bounds.size.width, self.view.bounds.size.height);
         
         if(UIInterfaceOrientationIsLandscape(baseSettings.interfaceOrientation)) {
             settings.frame = CGRectMake(0, 0, newFrame.size.height, newFrame.size.width);
@@ -531,29 +529,14 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
 
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
-    [self.view layoutIfNeeded];
-    [UIView animateWithDuration:0.3 animations:^{
-        BOOL bottomWindowBar = [change[NSKeyValueChangeNewKey] boolValue];
-        if(bottomWindowBar) {
-            self.navigationItem.leftBarButtonItems = self.navigationItem.rightBarButtonItems;
-            self.navigationItem.rightBarButtonItems = nil;
-            [self.view addArrangedSubview:self.navigationBar];
-        } else {
-            self.navigationItem.rightBarButtonItems = self.navigationItem.leftBarButtonItems;
-            self.navigationItem.leftBarButtonItems = nil;
-            [self.view insertArrangedSubview:self.navigationBar atIndex:0];
-        }
-        
-        [self updateVerticalConstraints];
-        [self adjustNavigationBarButtonSpacingWithNegativeSpacing:-8.0 rightMargin:-4.0];
-        
-        if(_isMaximized) {
-            [self.appSceneVC updateSettingsWithBlock:^(UIMutableApplicationSceneSettings *settings) {
-                [self updateMaximizedFrameWithSettings:settings];
-            }];
-        }
-        [self.view layoutIfNeeded];
-    }];
+    [self updateVerticalConstraints];
+    [self adjustNavigationBarButtonSpacingWithNegativeSpacing:-8.0 rightMargin:-4.0];
+
+    if(_isMaximized) {
+        [self.appSceneVC updateSettingsWithBlock:^(UIMutableApplicationSceneSettings *settings) {
+            [self updateMaximizedFrameWithSettings:settings];
+        }];
+    }
 }
 
 - (void)moveWindow:(UIPanGestureRecognizer*)sender {
@@ -587,40 +570,44 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
 
 - (void)updateVerticalConstraints {
     [self.view layoutIfNeeded];
-    [UIView animateWithDuration:0.3 animations:^{
-        BOOL bottomWindowBar = [NSUserDefaults.lcSharedDefaults boolForKey:@"LCMultitaskBottomWindowBar"];
-        BOOL hideWindowBar = MultitaskDockManager.shared.isCollapsed && self.isMaximized;
-        CGFloat navBarHeight = hideWindowBar ? 0 : 44;
-        self.navigationBar.alpha = hideWindowBar ? 0 : 1;
-        self.navigationBar.hidden = hideWindowBar;
-        
-        // Update safe area insets
-        if(self.isMaximized) {
-            self.appSceneVC.shouldSkipDebounceOnce = YES;
-            __weak typeof(self) weakSelf = self;
-            [self.appSceneVC updateSettingsWithBlock:^(UIMutableApplicationSceneSettings *settings) {
-                [weakSelf updateMaximizedFrameWithSettings:settings];
-            }];
-        }
-        
-        [NSLayoutConstraint deactivateConstraints:self.activatedVerticalConstraints];
-        if(bottomWindowBar) {
-            self.activatedVerticalConstraints = @[
-                [self.appSceneVC.view.topAnchor constraintEqualToAnchor:self.view.topAnchor],
-                [self.appSceneVC.view.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor constant:-navBarHeight],
-                [self.navigationBar.heightAnchor constraintEqualToConstant:navBarHeight]
-            ];
-        } else {
-            self.activatedVerticalConstraints = @[
-                [self.appSceneVC.view.topAnchor constraintEqualToAnchor:self.view.topAnchor constant:navBarHeight],
-                [self.appSceneVC.view.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
-                [self.navigationBar.heightAnchor constraintEqualToConstant:navBarHeight]
-            ];
-        }
-        [NSLayoutConstraint activateConstraints:self.activatedVerticalConstraints];
 
+    BOOL bottomWindowBar = [NSUserDefaults.lcSharedDefaults boolForKey:@"LCMultitaskBottomWindowBar"];
+    BOOL hideWindowBar = MultitaskDockManager.shared.isCollapsed && self.isMaximized;
+    CGFloat navBarHeight = 44.0;
+
+    self.navigationBar.alpha = hideWindowBar ? 0.0 : 1.0;
+    self.navigationBar.hidden = hideWindowBar;
+
+    // The toolbar is a floating overlay: keep app content constrained to the full window.
+    CGRect navigationBarFrame = CGRectMake(
+        0.0,
+        bottomWindowBar ? MAX(0.0, CGRectGetHeight(self.view.bounds) - navBarHeight) : 0.0,
+        CGRectGetWidth(self.view.bounds),
+        navBarHeight
+    );
+    self.navigationBar.autoresizingMask = UIViewAutoresizingFlexibleWidth |
+        (bottomWindowBar ? UIViewAutoresizingFlexibleTopMargin : UIViewAutoresizingFlexibleBottomMargin);
+
+    [NSLayoutConstraint deactivateConstraints:self.activatedVerticalConstraints ?: @[]];
+    self.activatedVerticalConstraints = @[
+        [self.appSceneVC.view.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+        [self.appSceneVC.view.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
+    ];
+    [NSLayoutConstraint activateConstraints:self.activatedVerticalConstraints];
+
+    [UIView animateWithDuration:0.3 animations:^{
+        self.navigationBar.frame = navigationBarFrame;
         [self.view layoutIfNeeded];
     }];
+
+    // Preserve the existing maximized-window safe-area behavior.
+    if(self.isMaximized) {
+        self.appSceneVC.shouldSkipDebounceOnce = YES;
+        __weak typeof(self) weakSelf = self;
+        [self.appSceneVC updateSettingsWithBlock:^(UIMutableApplicationSceneSettings *settings) {
+            [weakSelf updateMaximizedFrameWithSettings:settings];
+        }];
+    }
 }
 
 - (UIEdgeInsets)updateMaximizedSafeAreaWithSettings:(UIMutableApplicationSceneSettings *)settings {
