@@ -69,6 +69,35 @@ struct LCTweakFolderView : View {
 
     var body: some View {
         List {
+            if isRoot {
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "puzzlepiece.extension.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(Color(red: 0.45, green: 0.53, blue: 0.83))
+                                .frame(width: 38, height: 38)
+                                .background(Color(red: 0.45, green: 0.53, blue: 0.83).opacity(0.13), in: RoundedRectangle(cornerRadius: 12))
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("TWEAK LIBRARY")
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .tracking(1.4)
+                                    .foregroundStyle(.secondary)
+                                Text("Tweaks & Extensions")
+                                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                            }
+                            Spacer()
+                        }
+                        HStack(spacing: 8) {
+                            tweakOverviewPill(value: "\(tweakItems.filter { $0.isEnabled }.count)", label: "ENABLED", color: Color(red: 0.28, green: 0.62, blue: 0.52))
+                            tweakOverviewPill(value: "\(tweakItems.filter { !$0.isEnabled }.count)", label: "DISABLED", color: Color(red: 0.62, green: 0.58, blue: 0.78))
+                            tweakOverviewPill(value: "\(tweakItems.count)", label: "TOTAL", color: Color(red: 0.36, green: 0.51, blue: 0.82))
+                        }
+                    }
+                    .padding(.vertical, 8)
+                    .listRowBackground(Color.clear)
+                }
+            }
             Section {
                 ForEach(tweakItems, id:\.self) { tweakItem in
                     HStack {
@@ -139,6 +168,7 @@ struct LCTweakFolderView : View {
                 }
             }
         }
+        .listStyle(.insetGrouped)
         .navigationTitle(isRoot ? "lc.tabView.tweaks".loc : baseUrl.lastPathComponent)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -218,6 +248,22 @@ struct LCTweakFolderView : View {
         })
     }
     
+    private func tweakOverviewPill(value: String, label: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(value)
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .foregroundColor(.primary)
+            Text(label)
+                .font(.system(size: 8, weight: .bold, design: .rounded))
+                .tracking(0.7)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+    }
+
     func setTweakEnabled(tweakItem: LCTweakItem, enabled: Bool) {
         if tweakItem.isEnabled == enabled {
             return
