@@ -82,6 +82,28 @@ struct LCSettingsView: View {
     var body: some View {
         NavigationView {
             Form {
+                Section {
+                    HStack(spacing: 12) {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(Color(red: 0.34, green: 0.50, blue: 0.84))
+                            .frame(width: 44, height: 44)
+                            .background(Color(red: 0.34, green: 0.50, blue: 0.84).opacity(0.13), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("LIVE CONTAINER")
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                                .tracking(1.4)
+                                .foregroundStyle(.secondary)
+                            Text("Settings & Control")
+                                .font(.system(size: 20, weight: .bold, design: .rounded))
+                            Text("Configure JIT, interface, and app behavior.")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 7)
+                    .listRowBackground(Color.clear)
+                }
                 if sharedModel.multiLCStatus != 2 {
                     Section{
                         if !certificateDataFound {
