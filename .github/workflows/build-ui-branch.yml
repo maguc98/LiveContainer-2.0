@@ -1,0 +1,62 @@
+name: Build LiveContainer UI Branch
+
+on:
+  push:
+    branches:
+      - ui/multitask-glass-controls
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 90
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Select Xcode 27.2
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '27.2'
+
+      - name: Prepare OpenSSL dependency
+        working-directory: LiveContainer
+        run: sh .github/prepare_dependencies.sh
+
+      - name: Archive unsigned app
+        working-directory: LiveContainer
+        run: |
+          xcodebuild archive \
+            -project LiveContainer.xcodeproj \
+            -scheme LiveContainer \
+            -archivePath ../build/LiveContainer.xcarchive \
+            -sdk iphoneos \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_IDENTITY='' \
+            | xcpretty
+        shell: bash
+
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p build/Payload
+          cp -R build/LiveContainer.xcarchive/Products/Applications/LiveContainer.app build/Payload/
+          cd build
+          zip -r LiveContainer-unsigned.ipa Payload
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiveContainer-unsigned-IPA
+          path: build/LiveContainer-unsigned.ipa
+          if-no-files-found: error
+
+      - name: Upload archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiveContainer-xcarchive
+          path: build/LiveContainer.xcarchive
