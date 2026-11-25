@@ -33,6 +33,8 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          mkdir -p ../build
+          set +e
           xcodebuild archive \
             -project LiveContainer.xcodeproj \
             -scheme LiveContainer \
@@ -43,7 +45,15 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_IDENTITY='' \
-            | xcpretty
+            2>&1 | tee ../build/xcodebuild.log | xcpretty
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo ""
+            echo "===== Xcode compiler diagnostics ====="
+            grep -nE 'error:|fatal error:|warning:' ../build/xcodebuild.log | tail -n 120 || true
+            echo "===== End compiler diagnostics ====="
+            exit "$status"
+          fi
 
       - name: Package using the official SideStore integration script
         working-directory: LiveContainer
