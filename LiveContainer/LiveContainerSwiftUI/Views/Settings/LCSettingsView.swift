@@ -377,7 +377,21 @@ struct LCSettingsView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background {
+                ZStack(alignment: .top) {
+                    Color(uiColor: .systemGroupedBackground)
+                    LinearGradient(
+                        colors: [Color.blue.opacity(0.075), Color.purple.opacity(0.04), Color.clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .frame(height: 360)
+                }
+                .ignoresSafeArea()
+            }
             .navigationBarTitle("lc.tabView.settings".loc)
+            .navigationBarTitleDisplayMode(.large)
             .alert("lc.common.error".loc, isPresented: $errorShow){
             } message: {
                 Text(errorInfo)
