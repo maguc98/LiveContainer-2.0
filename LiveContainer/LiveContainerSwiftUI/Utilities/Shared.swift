@@ -53,8 +53,10 @@ struct LCPath {
 }
 
 class SharedModel: ObservableObject {
-    @Published var selectedTab: LCTabIdentifier = .apps
+    @Published var selectedTab: LCTabIdentifier = .home
     @Published var deepLink: URL?
+    @Published var requestedHomeAction: LCHomeAction?
+    @Published var requestedQuickLaunchApp: LCAppModel?
     
     @Published var isHiddenAppUnlocked = false
     @Published var developerMode = false
@@ -305,10 +307,17 @@ extension NSNotification {
 }
 
 public enum LCTabIdentifier: Hashable {
-    case sources
+    case home
     case apps
+    case sources
     case tweaks
     case settings
+}
+
+enum LCHomeAction: Equatable {
+    case chooseIPA
+    case installFromURL
+    case openBrowser
 }
 
 
