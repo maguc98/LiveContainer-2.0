@@ -512,6 +512,32 @@ struct LCSourcesView: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 16) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "shippingbox.fill")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(Color(red: 0.30, green: 0.62, blue: 0.52))
+                                    .frame(width: 38, height: 38)
+                                    .background(Color(red: 0.30, green: 0.62, blue: 0.52).opacity(0.13), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("APP SOURCES")
+                                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                                        .tracking(1.3)
+                                        .foregroundStyle(.secondary)
+                                    Text("Discover & Install")
+                                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                                }
+                                Spacer()
+                                Text("\(viewModel.sources.count)")
+                                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                                    .foregroundColor(Color(red: 0.30, green: 0.62, blue: 0.52))
+                            }
+                            .padding(15)
+                            .background {
+                                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                    .fill(Color(red: 0.30, green: 0.62, blue: 0.52).opacity(0.08))
+                            }
+                            .padding(.horizontal, 15)
+
                             ForEach(viewModel.sources, id: \.id) { item in
                                 let apps = filteredApps(for: item)
                                 AltStoreSourceSectionView(
