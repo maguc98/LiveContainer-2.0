@@ -519,11 +519,11 @@ struct LCSourcesView: View {
                                     .frame(width: 38, height: 38)
                                     .background(Color(red: 0.30, green: 0.62, blue: 0.52).opacity(0.13), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text("APP SOURCES")
+                                    Text("应用源")
                                         .font(.system(size: 10, weight: .bold, design: .rounded))
                                         .tracking(1.3)
                                         .foregroundStyle(.secondary)
-                                    Text("Discover & Install")
+                                    Text("发现并安装应用")
                                         .font(.system(size: 20, weight: .bold, design: .rounded))
                                 }
                                 Spacer()
