@@ -2,6 +2,9 @@ name: Sync upstream sources
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/sync-upstream.yml"
 
 permissions:
   contents: write
