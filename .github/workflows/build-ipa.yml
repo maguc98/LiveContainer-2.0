@@ -1,0 +1,109 @@
+name: Build LiveContainer + SideStore
+
+on:
+  push:
+    branches:
+      - ui-redesign-v2
+    paths:
+      - "LiveContainer/**"
+      - ".github/workflows/build-ipa.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-livecontainer-sidestore-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Archive and package both variants
+    runs-on: xcode-27
+    timeout-minutes: 60
+    env:
+      scheme: LiveContainer
+      archive_path: archive
+    defaults:
+      run:
+        working-directory: LiveContainer
+
+    steps:
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.2"
+
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - name: Show build environment
+        run: |
+          xcodebuild -version
+          xcodebuild -list -project LiveContainer.xcodeproj
+
+      - name: Prepare OpenSSL dependency
+        run: bash .github/prepare_dependencies.sh
+
+      - name: Archive LiveContainer host
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -archivePath "$archive_path.xcarchive" \
+            -scheme "$scheme" \
+            -project LiveContainer.xcodeproj \
+            -sdk iphoneos \
+            -arch arm64 \
+            -configuration Release \
+            | xcpretty
+
+      - name: Preserve Xcode archive
+        run: tar -cf "$archive_path.xcarchive.tar" "$archive_path.xcarchive"
+
+      - name: Package standalone and built-in SideStore editions
+        run: bash .github/build_github.sh
+
+      - name: Validate IPA archives and SideStore integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$scheme.ipa"
+          test -s "$scheme+SideStore.ipa"
+          unzip -t "$scheme.ipa" >/dev/null
+          unzip -t "$scheme+SideStore.ipa" >/dev/null
+          unzip -Z1 "$scheme+SideStore.ipa" > /tmp/combined-ipa-files.txt
+          grep -q 'Payload/LiveContainer.app/Frameworks/SideStoreApp.framework/SideStore$' /tmp/combined-ipa-files.txt
+          grep -q 'Payload/LiveContainer.app/Frameworks/SideStoreSupport.framework/' /tmp/combined-ipa-files.txt
+          grep -q 'Payload/LiveContainer.app/PlugIns/LiveWidgetExtension.appex/LiveWidgetExtension$' /tmp/combined-ipa-files.txt
+          echo "Both IPA archives are valid; the combined IPA contains the built-in SideStore app, support framework, and widget extension."
+
+      - name: Upload combined IPA
+        uses: actions/upload-artifact@v7
+        with:
+          name: LiveContainer-plus-SideStore
+          path: LiveContainer/LiveContainer+SideStore.ipa
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Upload standalone IPA
+        uses: actions/upload-artifact@v7
+        with:
+          name: LiveContainer-standalone
+          path: LiveContainer/LiveContainer.ipa
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Upload Xcode archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: LiveContainer-xcarchive
+          path: LiveContainer/archive.xcarchive.tar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
