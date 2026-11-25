@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - ui/multitask-glass-controls
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -27,7 +30,9 @@ jobs:
 
       - name: Archive unsigned app
         working-directory: LiveContainer
+        shell: bash
         run: |
+          set -o pipefail
           xcodebuild archive \
             -project LiveContainer.xcodeproj \
             -scheme LiveContainer \
@@ -39,7 +44,6 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_IDENTITY='' \
             | xcpretty
-        shell: bash
 
       - name: Package unsigned IPA
         run: |
