@@ -130,7 +130,21 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                         EmptyView()
                 })
                 .hidden()
-                
+
+                LCHomeOverviewView(
+                    appCount: sortedApps.count,
+                    hiddenCount: sharedModel.hiddenApps.count,
+                    sideStoreAvailable: UserDefaults.sideStoreExist(),
+                    canInstall: sharedModel.multiLCStatus != 2,
+                    onInstallIPA: { choosingIPA = true },
+                    onInstallURL: {
+                        Task { await startInstallFromUrl() }
+                    },
+                    onOpenSideStore: {
+                        LCUtils.openSideStore(delegate: self)
+                    }
+                )
+
                 LazyVStack {
                     ForEach(filteredApps, id: \.self) { app in
                         LCAppBanner(appModel: app, delegate: self)
@@ -211,7 +225,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                 }
             }
             
-            .navigationTitle("lc.appList.myApps".loc)
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     if sharedModel.multiLCStatus != 2 {
