@@ -63,8 +63,12 @@ struct LCTabView: View {
         }
         .modifier(LCHideNativeTabBar())
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            customBottomBar
+            if sharedModel.selectedTab != .apps {
+                customBottomBar
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(.spring(response: 0.32, dampingFraction: 0.84), value: sharedModel.selectedTab)
         .tint(Color(red: 0.29, green: 0.43, blue: 0.94))
         .background(Color(uiColor: .systemGroupedBackground))
         .sheet(isPresented: $showHiddenSources) {
