@@ -16,6 +16,7 @@
 @property(nonatomic) UIButton *maximizeButton;
 @property(nonatomic) bool isAppTerminationRequested;
 @property(nonatomic, copy) dispatch_block_t toolbarReturnBlock;
+@property(nonatomic) BOOL toolbarIsManuallyPositioned;
 @end
 
 static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UIColor *backgroundColor) {
@@ -535,6 +536,7 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
 - (void)moveWindow:(UIPanGestureRecognizer*)sender {
     // Drag only the floating toolbar. The app itself remains full-screen.
     if (sender.state == UIGestureRecognizerStateBegan) {
+        self.toolbarIsManuallyPositioned = YES;
         if (self.toolbarReturnBlock) {
             dispatch_block_cancel(self.toolbarReturnBlock);
             self.toolbarReturnBlock = nil;
@@ -568,6 +570,7 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
             [UIView animateWithDuration:0.45 delay:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
                 strongSelf.navigationBar.frame = target;
             } completion:nil];
+            strongSelf.toolbarIsManuallyPositioned = NO;
             strongSelf.toolbarReturnBlock = nil;
         });
         self.toolbarReturnBlock = returnBlock;
@@ -614,10 +617,12 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
     self.navigationBar.autoresizingMask = UIViewAutoresizingFlexibleWidth |
         (bottomWindowBar ? UIViewAutoresizingFlexibleTopMargin : UIViewAutoresizingFlexibleBottomMargin);
 
-    [UIView animateWithDuration:0.3 animations:^{
-        self.navigationBar.frame = navigationBarFrame;
-        [self.view layoutIfNeeded];
-    }];
+    if (!self.toolbarIsManuallyPositioned) {
+        [UIView animateWithDuration:0.3 animations:^{
+            self.navigationBar.frame = navigationBarFrame;
+            [self.view layoutIfNeeded];
+        }];
+    }
 
     // Keep the existing maximized safe-area policy while updating the app's scene frame.
     if(self.isMaximized) {
