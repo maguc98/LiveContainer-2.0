@@ -802,10 +802,43 @@ class AppInfoProvider {
         }
     }
     
-    // Hide the virtual container layer, not its processes, to return to LiveContainer.
+    // Return to the container with a visible transition. Capture the active app view,
+    // animate it toward the rail, and only hide the virtual-window layer after the animation.
     @objc public func returnToMainApp() {
         DispatchQueue.main.async {
-            self.windowHostingView.isHidden = true
+            guard !self.windowHostingView.isHidden else { return }
+            let active = self.frontmostRunningApp()?.view
+            let host = self.windowHostingView
+            guard let active, let snapshot = active.snapshotView(afterScreenUpdates: false) else {
+                UIView.animate(withDuration: 0.26, delay: 0, options: [.curveEaseInOut, .beginFromCurrentState]) {
+                    host.alpha = 0
+                    host.transform = CGAffineTransform(scaleX: 0.94, y: 0.94)
+                } completion: { _ in
+                    host.isHidden = true
+                    host.alpha = 1
+                    host.transform = .identity
+                }
+                return
+            }
+            let railFrame = self.hostingController?.view.convert(self.hostingController?.view.bounds ?? .zero, to: host) ?? CGRect(x: host.bounds.maxX - 34, y: host.bounds.midY - 74, width: 34, height: 148)
+            let snapshotFrame = active.convert(active.bounds, to: host)
+            snapshot.frame = snapshotFrame
+            snapshot.layer.cornerRadius = 12
+            snapshot.clipsToBounds = true
+            host.addSubview(snapshot)
+            active.isHidden = true
+            UIView.animate(withDuration: 0.42, delay: 0, usingSpringWithDamping: 0.82, initialSpringVelocity: 0.25, options: [.curveEaseInOut, .beginFromCurrentState]) {
+                snapshot.frame = CGRect(x: railFrame.midX - 8, y: railFrame.midY - 8, width: 16, height: 16)
+                snapshot.alpha = 0.15
+                snapshot.transform = CGAffineTransform(scaleX: 0.18, y: 0.18)
+                host.alpha = 0.12
+            } completion: { _ in
+                snapshot.removeFromSuperview()
+                active.isHidden = false
+                host.isHidden = true
+                host.alpha = 1
+                host.transform = .identity
+            }
         }
     }
 
@@ -1043,35 +1076,33 @@ public struct MultitaskDockSwiftView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            Capsule()
-                .fill(Color.primary.opacity(0.28))
-                .frame(width: 2, height: 52)
-
+        VStack(spacing: 8) {
+            Image(systemName: "chevron.left")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary.opacity(0.75))
             Button {
                 dockManager.toggleForegroundToolbar()
             } label: {
-                Circle()
-                    .fill(Color(red: 0.32, green: 0.46, blue: 0.66))
-                    .frame(width: 14, height: 14)
-                    .overlay(Circle().stroke(Color.white.opacity(0.95), lineWidth: 1.4))
-                    .shadow(color: .black.opacity(0.20), radius: 3, x: 0, y: 1)
-                    .frame(width: 30, height: 30)
-                    .contentShape(Circle())
+                ZStack {
+                    Circle().fill(Color.accentColor.opacity(0.18)).frame(width: 25, height: 25)
+                    Circle().fill(Color.accentColor).frame(width: 10, height: 10)
+                    Circle().stroke(Color.white.opacity(0.9), lineWidth: 1.2).frame(width: 15, height: 15)
+                }
+                .frame(width: 30, height: 32)
+                .contentShape(Circle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("显示或隐藏顶部应用控制栏")
-
-            Capsule()
-                .fill(Color.primary.opacity(0.28))
-                .frame(width: 2, height: 52)
+            Capsule().fill(Color.primary.opacity(0.16)).frame(width: 2, height: 42)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary.opacity(0.75))
         }
-        .padding(.vertical, 4)
-        .frame(width: 34, height: 148)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay(Capsule().stroke(Color.white.opacity(isRepositioningRail ? 1 : 0.78), lineWidth: isRepositioningRail ? 1.35 : 0.9))
-        .overlay(Capsule().fill(Color.accentColor.opacity(isRepositioningRail ? 0.10 : 0)))
-        .shadow(color: Color.black.opacity(isRepositioningRail ? 0.20 : 0.12), radius: isRepositioningRail ? 16 : 12, x: 0, y: 4)
+        .padding(.vertical, 8)
+        .frame(width: 34, height: 132)
+        .background(.regularMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.primary.opacity(isRepositioningRail ? 0.22 : 0.09), lineWidth: isRepositioningRail ? 1.3 : 0.8))
+        .shadow(color: Color.black.opacity(isRepositioningRail ? 0.16 : 0.08), radius: isRepositioningRail ? 13 : 8, x: 0, y: 3)
         .scaleEffect(isRepositioningRail ? 1.06 : 1)
         .animation(.spring(response: 0.24, dampingFraction: 0.72), value: isRepositioningRail)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
