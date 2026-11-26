@@ -810,12 +810,10 @@ class AppInfoProvider {
             let active = self.frontmostRunningApp()?.view
             let host = self.windowHostingView
             guard let active, let snapshot = active.snapshotView(afterScreenUpdates: false) else {
-                UIView.animate(withDuration: 0.26, delay: 0, options: [.curveEaseInOut, .beginFromCurrentState]) {
-                    host.alpha = 0
-                    host.transform = CGAffineTransform(scaleX: 0.94, y: 0.94)
+                UIView.animate(withDuration: 0.30, delay: 0, options: [.curveEaseInOut, .beginFromCurrentState]) {
+                    host.transform = CGAffineTransform(scaleX: 0.92, y: 0.92)
                 } completion: { _ in
                     host.isHidden = true
-                    host.alpha = 1
                     host.transform = .identity
                 }
                 return
@@ -827,16 +825,17 @@ class AppInfoProvider {
             snapshot.clipsToBounds = true
             host.addSubview(snapshot)
             active.isHidden = true
-            UIView.animate(withDuration: 0.42, delay: 0, usingSpringWithDamping: 0.82, initialSpringVelocity: 0.25, options: [.curveEaseInOut, .beginFromCurrentState]) {
-                snapshot.frame = CGRect(x: railFrame.midX - 8, y: railFrame.midY - 8, width: 16, height: 16)
-                snapshot.alpha = 0.15
-                snapshot.transform = CGAffineTransform(scaleX: 0.18, y: 0.18)
-                host.alpha = 0.12
+            UIView.animate(withDuration: 0.46, delay: 0, usingSpringWithDamping: 0.84, initialSpringVelocity: 0.28, options: [.curveEaseInOut, .beginFromCurrentState]) {
+                // Spatial transition only: no opacity changes. The snapshot travels
+                // to the rail and visibly scales down into its landing point.
+                snapshot.frame = CGRect(x: railFrame.midX - 12, y: railFrame.midY - 12, width: 24, height: 24)
+                snapshot.transform = CGAffineTransform(scaleX: 0.22, y: 0.22)
+                snapshot.layer.cornerRadius = 12
+                host.transform = CGAffineTransform(scaleX: 0.985, y: 0.985)
             } completion: { _ in
                 snapshot.removeFromSuperview()
                 active.isHidden = false
                 host.isHidden = true
-                host.alpha = 1
                 host.transform = .identity
             }
         }
