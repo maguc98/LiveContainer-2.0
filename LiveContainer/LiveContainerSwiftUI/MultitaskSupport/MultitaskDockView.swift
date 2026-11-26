@@ -716,6 +716,20 @@ class AppInfoProvider {
         }
     }
     
+    // Gesture-driven home/background: minimize the currently visible container while keeping the dock available.
+    @objc public func minimizeForegroundWindowFromGesture() {
+        DispatchQueue.main.async {
+            guard let foreground = self.apps.first(where: { app in
+                guard let view = app.view else { return false }
+                return !view.isHidden && view.alpha > 0.1
+            }), let view = foreground.view,
+               let vc = view._viewDelegate() as? DecoratedAppSceneViewController else { return }
+            view.layer.removeAllAnimations()
+            vc.minimizeWindow()
+            self.showDock()
+        }
+    }
+
     @objc public func minimizeAllWindows(except: DecoratedAppSceneViewController? = nil) {
         DispatchQueue.main.async {
             self.apps.forEach { app in
@@ -903,6 +917,16 @@ public struct MultitaskDockSwiftView: View {
                 
                 let currentPhysicalFrame = hcFrame.offsetBy(dx: self.dragOffset.width, dy: self.dragOffset.height)
                 
+                // Upward gesture acts like the phone home/background gesture.
+                if value.translation.height < -90 && abs(value.translation.width) < abs(value.translation.height) {
+                    dockManager.minimizeForegroundWindowFromGesture()
+                    withAnimation(.spring(response: MultitaskDockManager.Constants.longAnimationDuration, dampingFraction: MultitaskDockManager.Constants.standardSpringDamping)) {
+                        self.dragOffset = .zero
+                    }
+                    self.isMoving = false
+                    return
+                }
+
                 if dockManager.isPositionChangeGesture(for: hcFrame, translation: value.translation) {
                     let screenBounds = dockManager.keyWindow!.bounds
                     let targetX = dockManager.calculateTargetX(isDockHidden: false, isOnRightSide: currentPhysicalFrame.midX > screenBounds.width / 2, dockWidth: dockManager.dockWidth, screenWidth: screenBounds.width)
