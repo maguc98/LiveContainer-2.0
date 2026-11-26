@@ -11,6 +11,7 @@ extension Notification.Name {
 
 @objc class MultitaskManager : NSObject {
     static private var usingMultitaskContainers : [String] = []
+    static private var foregroundMultitaskContainers: Set<String> = []
     static private let stateLock = NSLock()
 
     private class func postContainerStateDidChange() {
@@ -31,6 +32,7 @@ extension Notification.Name {
         usingMultitaskContainers.removeAll(where: { c in
             return c == container
         })
+        foregroundMultitaskContainers.remove(container)
         stateLock.unlock()
         postContainerStateDidChange()
     }
@@ -47,5 +49,28 @@ extension Notification.Name {
         stateLock.lock()
         defer { stateLock.unlock() }
         return usingMultitaskContainers.count > 0
+    }
+
+    /// Tracks whether a container's scene is currently foregrounded.
+    /// A registered container can remain alive while its window is in the background.
+    @objc class func setContainerForeground(container: String, isForeground: Bool) {
+        stateLock.lock()
+        let didChange: Bool
+        if isForeground {
+            didChange = foregroundMultitaskContainers.insert(container).inserted
+        } else {
+            didChange = foregroundMultitaskContainers.remove(container) != nil
+        }
+        stateLock.unlock()
+
+        if didChange {
+            postContainerStateDidChange()
+        }
+    }
+
+    @objc class func hasForegroundContainer() -> Bool {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return !foregroundMultitaskContainers.isEmpty
     }
 }
