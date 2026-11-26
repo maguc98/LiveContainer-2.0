@@ -631,52 +631,96 @@ class AppInfoProvider {
         let isHidden = view.isHidden || view.alpha < 0.1
         let decoratedVC = view._viewDelegate() as? DecoratedAppSceneViewController
         let isMaximized = decoratedVC?.isMaximized ?? false
-        
-        // when a fullscreen multitask app is brought to front, optionally hide other windows
+
         if UserDefaults.lcShared().bool(forKey: "LCMaxOneAppOnStage") && isMaximized {
             MultitaskDockManager.shared.minimizeAllWindows(except: decoratedVC)
         }
-        
+
+        let targetFrame = view.frame
+        let perspective = CATransform3DIdentity
         if isHidden {
             view.layer.removeAllAnimations()
-            view.isHidden = true
-            view.transform = .identity
-            let origFrame = view.frame
-            let pipManager = PiPManager.shared!
-            if let decoratedVC = view._viewDelegate(), pipManager.isPiP(withDecoratedVC: decoratedVC) {
-                pipManager.stopPiP()
-            } else {
-                view.transform = CGAffineTransform(scaleX: 0.1, y: 0.1)
-                view.isHidden = false
-                let smaller = min(view.frame.size.width, view.frame.size.height)
-                view.frame.size = CGSize(width: smaller, height: smaller)
-                if let center { view.center = center }
+            view.isHidden = false
+            view.alpha = 1
+            view.frame = targetFrame
+            view.layer.transform = CATransform3DIdentity
+
+            let origin = center ?? CGPoint(x: targetFrame.midX, y: targetFrame.midY)
+            let startScale: CGFloat = 0.18
+            view.frame.size = CGSize(width: max(1, targetFrame.width * startScale), height: max(1, targetFrame.height * startScale))
+            view.center = origin
+            var startTransform = CATransform3DIdentity
+            startTransform.m34 = -1.0 / 900.0
+            startTransform = CATransform3DRotate(startTransform, -0.12, 1, 0, 0)
+            startTransform = CATransform3DScale(startTransform, startScale, startScale, 1)
+            view.layer.transform = startTransform
+            view.layer.shadowOpacity = 0
+            view.layer.shadowRadius = 0
+
+            if let decoratedVC = view._viewDelegate(), PiPManager.shared?.isPiP(withDecoratedVC: decoratedVC) == true {
+                PiPManager.shared?.stopPiP()
+                view.frame = targetFrame
+                view.layer.transform = CATransform3DIdentity
             }
-            
-            self.bringViewToFront(view, in: window)
+
+            bringViewToFront(view, in: window)
             UIView.animate(
-                withDuration: Constants.standardAnimationDuration,
+                withDuration: 0.62,
                 delay: 0,
-                usingSpringWithDamping: 1.0,
-                initialSpringVelocity: 0,
-                options: .curveEaseInOut,
+                usingSpringWithDamping: 0.78,
+                initialSpringVelocity: 0.55,
+                options: [.curveEaseOut, .allowUserInteraction],
                 animations: {
-                    view.alpha = 1.0
-                    view.transform = .identity
-                    view.frame = origFrame
+                    view.frame = targetFrame
+                    var endTransform = CATransform3DIdentity
+                    endTransform.m34 = -1.0 / 1200.0
+                    endTransform = CATransform3DRotate(endTransform, 0.025, 1, 0, 0)
+                    view.layer.transform = endTransform
+                    view.layer.shadowColor = UIColor.black.cgColor
+                    view.layer.shadowOpacity = 0.16
+                    view.layer.shadowRadius = 22
+                    view.layer.shadowOffset = CGSize(width: 0, height: 12)
+                },
+                completion: { _ in
+                    UIView.animate(withDuration: 0.18, delay: 0, options: [.curveEaseOut, .allowUserInteraction]) {
+                        view.layer.transform = CATransform3DIdentity
+                        view.layer.shadowOpacity = 0
+                        view.layer.shadowRadius = 0
+                        view.layer.shadowOffset = .zero
+                    }
                 }
             )
         } else {
             bringViewToFront(view, in: window)
-            
-            UIView.animate(withDuration: Constants.shortAnimationDuration1, animations: {
-                let scale = Constants.bringToFrontScale
-                view.transform = CGAffineTransform(scaleX: scale, y: scale)
-            }) { _ in
-                UIView.animate(withDuration: Constants.shortAnimationDuration2) {
-                    view.transform = .identity
+            UIView.animate(
+                withDuration: 0.22,
+                delay: 0,
+                options: [.curveEaseIn, .allowUserInteraction],
+                animations: {
+                    var transform = CATransform3DIdentity
+                    transform.m34 = -1.0 / 1000.0
+                    transform = CATransform3DRotate(transform, 0.035, 1, 0, 0)
+                    transform = CATransform3DScale(transform, 0.975, 0.975, 1)
+                    view.layer.transform = transform
+                    view.layer.shadowOpacity = 0.12
+                    view.layer.shadowRadius = 16
+                },
+                completion: { _ in
+                    UIView.animate(
+                        withDuration: 0.42,
+                        delay: 0,
+                        usingSpringWithDamping: 0.72,
+                        initialSpringVelocity: 0.48,
+                        options: [.curveEaseOut, .allowUserInteraction],
+                        animations: {
+                            view.layer.transform = CATransform3DIdentity
+                            view.layer.shadowOpacity = 0
+                            view.layer.shadowRadius = 0
+                            view.layer.shadowOffset = .zero
+                        }
+                    )
                 }
-            }
+            )
         }
     }
 
@@ -985,6 +1029,8 @@ private struct MultitaskSwitcherView: View {
     @State private var appeared = false
     @State private var previewImages: [String: UIImage] = [:]
     @State private var pressedUUID: String?
+    @State private var selectedUUID: String?
+    @Namespace private var cardTransition
     private let columns = [GridItem(.flexible(), spacing: 13), GridItem(.flexible(), spacing: 13)]
 
     private var activeCount: Int {
@@ -1071,17 +1117,17 @@ private struct MultitaskSwitcherView: View {
     private func appCard(_ app: DockAppModel, index: Int) -> some View {
         let isActive = !(app.view?.isHidden ?? true)
         return Button {
-            let feedback = UIImpactFeedbackGenerator(style: .light)
+            let feedback = UIImpactFeedbackGenerator(style: .medium)
             feedback.impactOccurred()
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) { pressedUUID = app.appUUID }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                _ = dockManager.bringMultitaskViewToFront(uuid: app.appUUID)
-                close()
+            withAnimation(.spring(response: 0.58, dampingFraction: 0.68, blendDuration: 0.16)) {
+                pressedUUID = app.appUUID
+                selectedUUID = app.appUUID
             }
         } label: {
             VStack(alignment: .leading, spacing: 0) {
                 ZStack(alignment: .bottomLeading) {
                     previewContent(for: app)
+                        .matchedGeometryEffect(id: app.appUUID, in: cardTransition)
                         .frame(height: 174)
                         .clipped()
 
