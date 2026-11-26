@@ -9,6 +9,17 @@ import Foundation
 import SwiftUI
 import UIKit
 
+
+private struct LCHideNativeTabBar: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.0, *) {
+            content.toolbar(.hidden, for: .tabBar)
+        } else {
+            content.onAppear { UITabBar.appearance().isHidden = true }
+        }
+    }
+}
+
 struct LCTabView: View {
     @State var errorShow = false
     @State var crashReportShow = false
@@ -43,7 +54,7 @@ struct LCTabView: View {
                 .tabItem { Label("lc.tabView.settings".loc, systemImage: "gearshape.fill") }
                 .tag(LCTabIdentifier.settings)
         }
-        .toolbar(.hidden, for: .tabBar)
+        .modifier(LCHideNativeTabBar())
         .safeAreaInset(edge: .bottom, spacing: 0) {
             customBottomBar
         }
