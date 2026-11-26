@@ -12,6 +12,7 @@ import UIKit
 struct LCTabView: View {
     @State var errorShow = false
     @State var crashReportShow = false
+    @State private var showHiddenSources = false
     @State var errorInfo = ""
     
     @EnvironmentObject var sharedModel : SharedModel
@@ -44,6 +45,18 @@ struct LCTabView: View {
         }
         .tint(Color(red: 0.29, green: 0.43, blue: 0.94))
         .background(Color(uiColor: .systemGroupedBackground))
+        .sheet(isPresented: $showHiddenSources) {
+            NavigationView {
+                LCSourcesView()
+                    .navigationTitle("lc.tabView.sources".loc)
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("lc.common.done".loc) { showHiddenSources = false }
+                        }
+                    }
+            }
+        }
         .downloadAlert(helper: downloadHelper)
         .environmentObject(downloadHelper)
         .alert("lc.common.error".loc, isPresented: $errorShow){
@@ -130,8 +143,8 @@ struct LCTabView: View {
             case "certificate":
                 sharedModel.selectedTab = .settings
             case "source":
-                // Sources is no longer exposed in the main navigation; redirect to Apps.
-                sharedModel.selectedTab = .apps
+                // Keep Sources functional but hidden from the bottom tab bar.
+                showHiddenSources = true
             default:
                 return
             }
