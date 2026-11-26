@@ -241,10 +241,20 @@ class AppInfoProvider {
 
     public var keyWindow: UIWindow? {
         if let originalKeyWindow { return originalKeyWindow }
-        return UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
+
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        if let activeWindow = scenes
             .first(where: { $0.activationState == .foregroundActive })?
-            .windows.first(where: { $0.isKeyWindow })
+            .windows.first(where: { $0.isKeyWindow }) {
+            return activeWindow
+        }
+        if let foregroundWindow = scenes
+            .filter({ $0.activationState == .foregroundActive || $0.activationState == .foregroundInactive })
+            .flatMap({ $0.windows })
+            .first(where: { $0.isKeyWindow }) {
+            return foregroundWindow
+        }
+        return scenes.flatMap({ $0.windows }).first(where: { $0.isKeyWindow })
     }
 
     public var safeAreaInsets: UIEdgeInsets {
@@ -255,12 +265,13 @@ class AppInfoProvider {
     }
 
     private var safeAreaHeight: CGFloat {
-        keyWindow!.bounds.height - safeAreaInsets.top - safeAreaInsets.bottom
+        (keyWindow?.bounds.height ?? UIScreen.main.bounds.height) - safeAreaInsets.top - safeAreaInsets.bottom
     }
     
     override init() {
         super.init()
-        keyWindow!.rootViewController!.view.subviews.first!.addSubview(self.windowHostingView)
+        // The home summary reads this singleton before SwiftUI has necessarily attached
+        // its UIWindowScene. Defer host-view attachment until a key window exists.
         setupDockView()
         NotificationCenter.default.addObserver(
             self,
@@ -274,6 +285,48 @@ class AppInfoProvider {
             name: UIDevice.orientationDidChangeNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(sceneWindowDidBecomeAvailable),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(sceneWindowDidBecomeAvailable),
+            name: UIWindow.didBecomeKeyNotification,
+            object: nil
+        )
+        DispatchQueue.main.async {
+            self.attachWindowHostingViewIfNeeded()
+        }
+    }
+
+    @objc private func sceneWindowDidBecomeAvailable() {
+        DispatchQueue.main.async {
+            self.attachWindowHostingViewIfNeeded()
+            if !self.apps.isEmpty && !self.isVisible {
+                self.showDock()
+            }
+        }
+    }
+
+    private func attachWindowHostingViewIfNeeded() {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { self.attachWindowHostingViewIfNeeded() }
+            return
+        }
+        guard let window = self.keyWindow,
+              let rootViewController = window.rootViewController else { return }
+
+        let rootView = rootViewController.view
+        let attachmentView = rootView.subviews.first ?? rootView
+        if self.windowHostingView.superview !== attachmentView {
+            self.windowHostingView.removeFromSuperview()
+            self.windowHostingView.frame = attachmentView.bounds
+            self.windowHostingView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            attachmentView.addSubview(self.windowHostingView)
+        }
     }
     
     deinit {
@@ -406,6 +459,7 @@ class AppInfoProvider {
         guard !isVisible, let hostingController = hostingController else { return }
         
         guard let keyWindow = self.keyWindow else { return }
+        attachWindowHostingViewIfNeeded()
         
         DispatchQueue.main.async {
             self.isVisible = true
@@ -447,8 +501,13 @@ class AppInfoProvider {
     
     @objc public func hideDock() {
         guard isVisible, let hostingController = hostingController else { return }
-        
+
         DispatchQueue.main.async {
+            guard let keyWindow = self.keyWindow else {
+                hostingController.view.isHidden = true
+                self.isVisible = false
+                return
+            }
             UIView.animate(
                 withDuration: Constants.standardAnimationDuration,
                 delay: 0,
@@ -459,11 +518,10 @@ class AppInfoProvider {
                 hostingController.view.alpha = 0
                 let finalScale = Constants.initialScale
                 hostingController.view.transform = CGAffineTransform(scaleX: finalScale, y: finalScale)
-                // Move off-screen to hide, but keep in view hierarchy
-                let screenBounds = self.keyWindow!.bounds
+                let screenBounds = keyWindow.bounds
                 let currentDockWidth = self.dockWidth
                 let targetX = self.calculateTargetX(isDockHidden: true, isOnRightSide: hostingController.view.frame.midX > screenBounds.width / 2, dockWidth: currentDockWidth, screenWidth: screenBounds.width)
-                let targetY = hostingController.view.frame.origin.y // Keep current Y
+                let targetY = hostingController.view.frame.origin.y
                 hostingController.view.frame.origin = CGPoint(x: targetX, y: targetY)
             } completion: { _ in
                 self.isVisible = false
@@ -495,7 +553,7 @@ class AppInfoProvider {
     }
 
     func handleSwipeToHideOrShowGesture(for originalFrame: CGRect, translation: CGSize) -> Bool {
-        let screenWidth = keyWindow!.bounds.width
+        guard let screenWidth = keyWindow?.bounds.width else { return false }
         let isOnRightSide = originalFrame.origin.x > screenWidth / 2
         let isSwipingAway = (isOnRightSide && translation.width > 0) || (!isOnRightSide && translation.width < 0)
         
@@ -523,7 +581,7 @@ class AppInfoProvider {
             return false
         }
         
-        let screenWidth = keyWindow!.bounds.width
+        guard let screenWidth = keyWindow?.bounds.width else { return false }
         let isOnRightSide = originalFrame.origin.x > screenWidth / 2
         
         guard !self.isDockHidden else { return false }
@@ -543,6 +601,7 @@ class AppInfoProvider {
     
     // Find and bring corresponding multitask view to front
     func bringMultitaskViewToFront(uuid: String, from center: CGPoint? = nil) -> Bool {
+        attachWindowHostingViewIfNeeded()
         windowHostingView.isHidden = false
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else {
             return false
@@ -661,6 +720,7 @@ class AppInfoProvider {
         let appModel = DockAppModel(appName: appName, appUUID: appUUID, appInfo: appInfo, view: view)
         
         DispatchQueue.main.async {
+            self.attachWindowHostingViewIfNeeded()
             self.windowHostingView.isHidden = false
             self.apps.append(appModel)
             
