@@ -416,7 +416,7 @@ struct LCSettingsView: View {
                 .ignoresSafeArea()
             }
             .navigationBarTitle("lc.tabView.settings".loc)
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .alert("lc.common.error".loc, isPresented: $errorShow){
             } message: {
                 Text(errorInfo)
