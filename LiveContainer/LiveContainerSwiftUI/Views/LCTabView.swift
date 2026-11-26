@@ -43,6 +43,10 @@ struct LCTabView: View {
                 .tabItem { Label("lc.tabView.settings".loc, systemImage: "gearshape.fill") }
                 .tag(LCTabIdentifier.settings)
         }
+        .toolbar(.hidden, for: .tabBar)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            customBottomBar
+        }
         .tint(Color(red: 0.29, green: 0.43, blue: 0.94))
         .background(Color(uiColor: .systemGroupedBackground))
         .sheet(isPresented: $showHiddenSources) {
@@ -122,6 +126,59 @@ struct LCTabView: View {
         }
     }
     
+    
+    private var customBottomBar: some View {
+        HStack(spacing: 0) {
+            HStack(spacing: 4) {
+                bottomBarButton(title: "首页", symbol: "house.fill", tab: .home)
+                bottomBarButton(title: "lc.tabView.apps".loc, symbol: "square.stack.3d.up.fill", tab: .apps)
+                if DataManager.shared.model.multiLCStatus != 2 {
+                    bottomBarButton(title: "lc.tabView.tweaks".loc, symbol: "wrench.and.screwdriver", tab: .tweaks)
+                }
+            }
+            .padding(5)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().stroke(Color.white.opacity(0.55), lineWidth: 0.8))
+
+            Spacer(minLength: 12)
+
+            bottomBarButton(title: "lc.tabView.settings".loc, symbol: "gearshape.fill", tab: .settings)
+                .frame(width: 58, height: 58)
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay(Circle().stroke(Color.white.opacity(0.55), lineWidth: 0.8))
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
+        .background {
+            LinearGradient(colors: [Color.clear, Color(uiColor: .systemGroupedBackground).opacity(0.72)], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea(edges: .bottom)
+        }
+    }
+
+    private func bottomBarButton(title: String, symbol: String, tab: LCTabIdentifier) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                sharedModel.selectedTab = tab
+            }
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: symbol)
+                    .font(.system(size: 17, weight: .semibold))
+                if sharedModel.selectedTab == tab {
+                    Text(title)
+                        .font(.system(size: 12, weight: .semibold))
+                        .transition(.opacity.combined(with: .scale))
+                }
+            }
+            .foregroundStyle(sharedModel.selectedTab == tab ? Color(red: 0.29, green: 0.43, blue: 0.94) : Color.secondary)
+            .frame(minWidth: 48, minHeight: 48)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+    }
+
     func dispatchURL(url: URL) {
         repeat {
             if url.isFileURL {
