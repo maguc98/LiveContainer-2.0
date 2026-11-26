@@ -15,6 +15,7 @@
 @property(nonatomic) CGRect originalFrame;
 @property(nonatomic) UIButton *maximizeButton;
 @property(nonatomic) bool isAppTerminationRequested;
+@property(nonatomic, copy) dispatch_block_t toolbarReturnBlock;
 @end
 
 static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UIColor *backgroundColor) {
@@ -532,13 +533,46 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
 }
 
 - (void)moveWindow:(UIPanGestureRecognizer*)sender {
-    if(_isMaximized) return;
-    
+    // Drag only the floating toolbar. The app itself remains full-screen.
+    if (sender.state == UIGestureRecognizerStateBegan) {
+        if (self.toolbarReturnBlock) {
+            dispatch_block_cancel(self.toolbarReturnBlock);
+            self.toolbarReturnBlock = nil;
+        }
+    }
+
     CGPoint point = [sender translationInView:self.view];
     [sender setTranslation:CGPointZero inView:self.view];
 
-    self.view.center = CGPointMake(self.view.center.x + point.x, self.view.center.y + point.y);
-    [self updateOriginalFrame];
+    CGRect barFrame = self.navigationBar.frame;
+    barFrame.origin.x += point.x;
+    barFrame.origin.y += point.y;
+
+    // Keep the floating controls reachable while allowing free placement.
+    CGRect bounds = self.view.bounds;
+    CGFloat safeTop = self.view.window.safeAreaInsets.top;
+    CGFloat safeBottom = self.view.window.safeAreaInsets.bottom;
+    barFrame.origin.x = MIN(MAX(0.0, barFrame.origin.x), MAX(0.0, CGRectGetWidth(bounds) - CGRectGetWidth(barFrame)));
+    barFrame.origin.y = MIN(MAX(0.0, barFrame.origin.y), MAX(safeTop, CGRectGetHeight(bounds) - safeBottom - CGRectGetHeight(barFrame)));
+    self.navigationBar.frame = barFrame;
+
+    if (sender.state == UIGestureRecognizerStateEnded || sender.state == UIGestureRecognizerStateCancelled) {
+        __weak typeof(self) weakSelf = self;
+        dispatch_block_t returnBlock = dispatch_block_create(0, ^{
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+            if (!strongSelf) return;
+            CGFloat topY = strongSelf.view.window.safeAreaInsets.top + 6.0;
+            CGRect target = strongSelf.navigationBar.frame;
+            target.origin.x = 0.0;
+            target.origin.y = topY;
+            [UIView animateWithDuration:0.45 delay:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
+                strongSelf.navigationBar.frame = target;
+            } completion:nil];
+            strongSelf.toolbarReturnBlock = nil;
+        });
+        self.toolbarReturnBlock = returnBlock;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), returnBlock);
+    }
 }
 
 - (void)resizeWindow:(UIPanGestureRecognizer*)sender {
