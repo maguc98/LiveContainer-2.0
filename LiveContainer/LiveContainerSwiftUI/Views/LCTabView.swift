@@ -162,32 +162,32 @@ struct LCTabView: View {
     
     
     private var customBottomBar: some View {
-        HStack(alignment: .center, spacing: 12) {
-            HStack(spacing: 2) {
+        HStack(alignment: .center, spacing: 10) {
+            HStack(spacing: 4) {
                 bottomBarButton(title: "首页", symbol: "house.fill", tab: .home)
                 bottomBarButton(title: "lc.tabView.apps".loc, symbol: "square.stack.3d.up.fill", tab: .apps)
                 if DataManager.shared.model.multiLCStatus != 2 {
                     bottomBarButton(title: "lc.tabView.tweaks".loc, symbol: "wrench.and.screwdriver", tab: .tweaks)
                 }
             }
-            .padding(.horizontal, 5)
+            .padding(.horizontal, 6)
             .padding(.vertical, 5)
             .background(.ultraThinMaterial, in: Capsule())
-            .overlay(Capsule().stroke(Color.primary.opacity(0.10), lineWidth: 0.75))
-            .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 3)
+            .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 0.65))
+            .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 4)
 
             Spacer(minLength: 0)
 
             bottomBarButton(title: "lc.tabView.settings".loc, symbol: "gearshape.fill", tab: .settings)
-                .frame(width: 54, height: 54)
+                .frame(width: 50, height: 50)
                 .background(.ultraThinMaterial, in: Circle())
-                .overlay(Circle().stroke(Color.primary.opacity(0.10), lineWidth: 0.75))
-                .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 3)
+                .overlay(Circle().stroke(Color.primary.opacity(0.08), lineWidth: 0.65))
+                .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 4)
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 6)
+        .padding(.horizontal, 14)
+        .padding(.top, 6)
+        .padding(.bottom, 4)
     }
 
     private func bottomBarButton(title: String, symbol: String, tab: LCTabIdentifier) -> some View {
@@ -199,7 +199,7 @@ struct LCTabView: View {
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: symbol)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .frame(width: 22, height: 22)
                 if isSelected {
                     Text(title)
@@ -209,8 +209,8 @@ struct LCTabView: View {
                 }
             }
             .foregroundStyle(isSelected ? Color(red: 0.29, green: 0.43, blue: 0.94) : Color.secondary)
-            .frame(width: isSelected ? nil : 44, height: 44)
-            .padding(.horizontal, isSelected ? 10 : 0)
+            .frame(width: isSelected ? nil : 40, height: 40)
+            .padding(.horizontal, isSelected ? 9 : 0)
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
