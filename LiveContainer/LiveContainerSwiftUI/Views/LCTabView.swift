@@ -82,7 +82,7 @@ struct LCTabView: View {
             }
         }
         .tint(Color(red: 0.29, green: 0.43, blue: 0.94))
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
         .sheet(isPresented: $showHiddenSources) {
             NavigationView {
                 LCSourcesView()
@@ -173,7 +173,7 @@ struct LCTabView: View {
             .padding(.horizontal, 5)
             .padding(.vertical, 5)
             .background(.ultraThinMaterial, in: Capsule())
-            .overlay(Capsule().stroke(Color.white.opacity(0.5), lineWidth: 0.75))
+            .overlay(Capsule().stroke(Color.primary.opacity(0.10), lineWidth: 0.75))
             .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 3)
 
             Spacer(minLength: 0)
@@ -181,7 +181,7 @@ struct LCTabView: View {
             bottomBarButton(title: "lc.tabView.settings".loc, symbol: "gearshape.fill", tab: .settings)
                 .frame(width: 54, height: 54)
                 .background(.ultraThinMaterial, in: Circle())
-                .overlay(Circle().stroke(Color.white.opacity(0.5), lineWidth: 0.75))
+                .overlay(Circle().stroke(Color.primary.opacity(0.10), lineWidth: 0.75))
                 .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 3)
         }
         .frame(maxWidth: .infinity)
@@ -388,15 +388,16 @@ private enum LCHomePalette {
 
 private struct LCHomeSurface: ViewModifier {
     var radius: CGFloat = 22
+    @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
         content
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .stroke(Color.white.opacity(0.72), lineWidth: 0.8)
+                    .stroke(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.10), lineWidth: 0.8)
             }
-            .shadow(color: Color.black.opacity(0.045), radius: 14, x: 0, y: 6)
+            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.18 : 0.045), radius: 14, x: 0, y: 6)
     }
 }
 
@@ -440,6 +441,7 @@ private struct LCHomeQuickActionTile: View {
 
 struct LCHomeView: View {
     @EnvironmentObject private var sharedModel: SharedModel
+    @Environment(\.colorScheme) private var colorScheme
     @AppStorage("darkModeIcon", store: LCUtils.appGroupUserDefault) private var darkModeIcon = false
 
     private let quickLaunchColumns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
@@ -464,7 +466,11 @@ struct LCHomeView: View {
                 ZStack(alignment: .top) {
                     Color(uiColor: .systemGroupedBackground)
                     LinearGradient(
-                        colors: [
+                        colors: colorScheme == .dark ? [
+                            Color(red: 0.28, green: 0.36, blue: 0.58).opacity(0.20),
+                            Color(red: 0.38, green: 0.28, blue: 0.52).opacity(0.12),
+                            Color.clear
+                        ] : [
                             Color(red: 0.78, green: 0.84, blue: 1.0).opacity(0.42),
                             Color(red: 0.88, green: 0.80, blue: 0.98).opacity(0.30),
                             Color.clear
@@ -512,7 +518,7 @@ struct LCHomeView: View {
                     .foregroundStyle(.primary)
                     .frame(width: 42, height: 42)
                     .background(.regularMaterial, in: Circle())
-                    .overlay(Circle().stroke(Color.white.opacity(0.7), lineWidth: 0.8))
+                    .overlay(Circle().stroke(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.10), lineWidth: 0.8))
             }
             .buttonStyle(.plain)
             .accessibilityLabel("设置")
