@@ -197,7 +197,7 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
     frame.origin = CGPointMake(rootViewCenter.x - frame.size.width / 2, rootViewCenter.y - frame.size.height / 2);
     
     if(_isMaximized) {
-        CGRect maxFrame = UIEdgeInsetsInsetRect(self.view.window.frame, self.view.window.safeAreaInsets);
+        CGRect maxFrame = self.view.window.bounds;
         // save origin as normalized coordinates
         frame.origin.x /= maxFrame.size.width;
         frame.origin.y /= maxFrame.size.height;
@@ -564,8 +564,7 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
     [self.view layoutIfNeeded];
 
     BOOL bottomWindowBar = [NSUserDefaults.lcSharedDefaults boolForKey:@"LCMultitaskBottomWindowBar"];
-    // Never hide the floating controls when the dock collapses or app state changes.
-    // Keeping this overlay visible prevents the title pill from becoming unreachable.
+    // Keep the toolbar reachable below the status bar / Dynamic Island when the app scene is full-screen.
     CGFloat navBarHeight = 44.0;
 
     self.navigationBar.alpha = 1.0;
@@ -574,7 +573,7 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
     // Position the toolbar as an overlay only; never alter the app scene's full-window constraints.
     CGRect navigationBarFrame = CGRectMake(
         0.0,
-        bottomWindowBar ? MAX(0.0, CGRectGetHeight(self.view.bounds) - navBarHeight) : 0.0,
+        bottomWindowBar ? MAX(0.0, CGRectGetHeight(self.view.bounds) - self.view.window.safeAreaInsets.bottom - navBarHeight) : self.view.window.safeAreaInsets.top + 6.0,
         CGRectGetWidth(self.view.bounds),
         navBarHeight
     );
@@ -629,7 +628,9 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
 }
 
 - (void)updateMaximizedFrameWithSettings:(UIMutableApplicationSceneSettings *)settings {
-    CGRect maxFrame = UIEdgeInsetsInsetRect(self.view.window.frame, [self updateMaximizedSafeAreaWithSettings:settings]);
+    settings.peripheryInsets = UIEdgeInsetsZero;
+    settings.safeAreaInsetsPortrait = UIEdgeInsetsZero;
+    CGRect maxFrame = self.view.window.bounds;
     self.view.frame = maxFrame;
 }
 
