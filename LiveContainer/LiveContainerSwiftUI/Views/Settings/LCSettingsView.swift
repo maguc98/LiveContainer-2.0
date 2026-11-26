@@ -398,6 +398,9 @@ struct LCSettingsView: View {
                 }
             }
             .modifier(LCSettingsScrollBackgroundModifier())
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Color.clear.frame(height: 52)
+            }
             .listStyle(.insetGrouped)
             .environment(\.defaultMinListRowHeight, 48)
             .animation(.spring(response: 0.32, dampingFraction: 0.86), value: certificateDataFound)
