@@ -177,6 +177,8 @@ struct LCSettingsView: View {
                             Spacer()
                             TextField(JITEnabler == .SideJITServer ? "http://x.x.x.x:8080" : "http://[fd00::]:9172", text: $sideJITServerAddress)
                                 .multilineTextAlignment(.trailing)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
                         }
                     }
                     if JITEnabler == .SideJITServer {
@@ -185,6 +187,8 @@ struct LCSettingsView: View {
                             Spacer()
                             TextField("", text: $deviceUDID)
                                 .multilineTextAlignment(.trailing)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
                         }
                     }
                     Picker(selection: $JITEnabler) {
@@ -203,9 +207,10 @@ struct LCSettingsView: View {
                 
                 Section {
                     Picker(selection: $selected32BitEmulator) {
+                        Text("lc.common.none".loc).tag("")
                         ForEach(sharedModel.arm32EmuApps, id: \.self) { app in
-                            Text("lc.common.none".loc).tag("")
-                            Text(app.appInfo.displayName()).tag(app.appInfo.relativeBundlePath!)
+                            Text(app.appInfo.displayName())
+                                .tag(app.appInfo.relativeBundlePath ?? "")
                         }
                     } label: {
                         Text("lc.settings.selected32BitEmulator".loc)
@@ -389,6 +394,12 @@ struct LCSettingsView: View {
                 }
             }
             .modifier(LCSettingsScrollBackgroundModifier())
+            .listStyle(.insetGrouped)
+            .scrollIndicators(.hidden)
+            .environment(\.defaultMinListRowHeight, 48)
+            .animation(.spring(response: 0.32, dampingFraction: 0.86), value: certificateDataFound)
+            .animation(.spring(response: 0.32, dampingFraction: 0.86), value: JITEnabler)
+            .animation(.spring(response: 0.32, dampingFraction: 0.86), value: sharedModel.developerMode)
             .background {
                 ZStack(alignment: .top) {
                     Color(uiColor: .systemGroupedBackground)
@@ -403,6 +414,7 @@ struct LCSettingsView: View {
             }
             .navigationBarTitle("lc.tabView.settings".loc)
             .navigationBarTitleDisplayMode(.large)
+            .scrollDismissesKeyboard(.interactively)
             .alert("lc.common.error".loc, isPresented: $errorShow){
             } message: {
                 Text(errorInfo)
