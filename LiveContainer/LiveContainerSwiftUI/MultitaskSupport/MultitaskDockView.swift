@@ -140,6 +140,8 @@ class AppInfoProvider {
     internal var hostingController: UIHostingController<AnyView>?
     private var switcherWindow: UIWindow?
     private weak var originalKeyWindow: UIWindow?
+    // Preserve the user's chosen vertical position when the rail is refreshed or rotated.
+    private var requestedDockCenterY: CGFloat?
 
     public struct Constants {
         // MARK: - Layout & Sizing
@@ -368,11 +370,35 @@ class AppInfoProvider {
         let bounds = keyWindow.bounds
         let width = dockWidth
         let height: CGFloat = 148
+        let centerY = requestedDockCenterY ?? bounds.midY
+        let minY = safeAreaInsets.top + Constants.dockVerticalMargin
+        let maxY = max(minY, bounds.height - safeAreaInsets.bottom - height - Constants.dockVerticalMargin)
+        let originY = max(minY, min(maxY, centerY - height / 2))
         let frame = CGRect(x: bounds.width - width - 2,
-                           y: (bounds.height - height) / 2,
+                           y: originY,
                            width: width,
                            height: height)
         applyNewFrame(frame, for: hostingController, animated: animated)
+    }
+
+    /// Moves the side rail while keeping its entire body inside the usable safe area.
+    func moveDockVertically(toCenterY centerY: CGFloat) {
+        guard let hostingController, let keyWindow else { return }
+        let bounds = keyWindow.bounds
+        let height = hostingController.view.bounds.height > 0 ? hostingController.view.bounds.height : 148
+        let minY = safeAreaInsets.top + Constants.dockVerticalMargin
+        let maxY = max(minY, bounds.height - safeAreaInsets.bottom - height - Constants.dockVerticalMargin)
+        let originY = max(minY, min(maxY, centerY - height / 2))
+        requestedDockCenterY = originY + height / 2
+
+        var frame = hostingController.view.frame
+        frame.origin.y = originY
+        hostingController.view.frame = frame
+    }
+
+    func finishDockVerticalDrag() {
+        let feedback = UIImpactFeedbackGenerator(style: .soft)
+        feedback.impactOccurred()
     }
 
     // MARK: - Frame Calculation Helpers
@@ -939,6 +965,27 @@ public struct MultitaskDockSwiftView: View {
     @State private var latestTranslation: CGSize = .zero
     @State private var switcherWorkItem: DispatchWorkItem?
     @State private var switcherWasPresented = false
+    @State private var isRepositioningRail = false
+    @State private var didRepositionRail = false
+
+    // A deliberate long press turns the rail into a vertical grab handle.
+    private var repositionGesture: some Gesture {
+        LongPressGesture(minimumDuration: 0.34, maximumDistance: 12)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
+            .onChanged { value in
+                guard case .second(true, let drag?) = value else { return }
+                isRepositioningRail = true
+                didRepositionRail = true
+                dockManager.moveDockVertically(toCenterY: drag.location.y)
+            }
+            .onEnded { value in
+                if case .second(true, let drag?) = value {
+                    dockManager.moveDockVertically(toCenterY: drag.location.y)
+                    dockManager.finishDockVerticalDrag()
+                }
+                isRepositioningRail = false
+            }
+    }
 
     private var railGesture: some Gesture {
         DragGesture(minimumDistance: 8, coordinateSpace: .global)
@@ -969,6 +1016,15 @@ public struct MultitaskDockSwiftView: View {
                 let elapsed = Date().timeIntervalSince(gestureStartedAt ?? Date())
                 switcherWorkItem?.cancel()
                 switcherWorkItem = nil
+
+                // A completed long-press drag repositions the rail; it is not an app-switch gesture.
+                if didRepositionRail {
+                    didRepositionRail = false
+                    gestureStartedAt = nil
+                    latestTranslation = .zero
+                    switcherWasPresented = false
+                    return
+                }
 
                 if switcherWasPresented {
                     // Keep the task-switcher open; the user can now tap a card.
@@ -1013,11 +1069,16 @@ public struct MultitaskDockSwiftView: View {
         .padding(.vertical, 4)
         .frame(width: 34, height: 148)
         .background(.ultraThinMaterial, in: Capsule())
-        .overlay(Capsule().stroke(Color.white.opacity(0.78), lineWidth: 0.9))
-        .shadow(color: Color.black.opacity(0.12), radius: 12, x: 0, y: 4)
+        .overlay(Capsule().stroke(Color.white.opacity(isRepositioningRail ? 1 : 0.78), lineWidth: isRepositioningRail ? 1.35 : 0.9))
+        .overlay(Capsule().fill(Color.accentColor.opacity(isRepositioningRail ? 0.10 : 0)))
+        .shadow(color: Color.black.opacity(isRepositioningRail ? 0.20 : 0.12), radius: isRepositioningRail ? 16 : 12, x: 0, y: 4)
+        .scaleEffect(isRepositioningRail ? 1.06 : 1)
+        .animation(.spring(response: 0.24, dampingFraction: 0.72), value: isRepositioningRail)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
         .simultaneousGesture(railGesture)
+        .simultaneousGesture(repositionGesture)
+        .accessibilityHint("长按后上下拖动可调整侧边栏位置")
         .background(Color.clear)
     }
 }
