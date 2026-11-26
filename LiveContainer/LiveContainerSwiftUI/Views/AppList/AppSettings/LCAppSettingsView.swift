@@ -34,6 +34,8 @@ struct LCAppSettingsView: View {
     @StateObject private var addExternalNonLocalContainerWarningAlert = YesNoHelper()
     @State var choosingStorage = false
     
+    @State private var showCustomIconPicker = false
+    @State private var customIconPreview: UIImage? = UIImage(contentsOfFile: (model.appInfo.bundlePath() ?? "") + "/LCUserCustomIcon.png")
     @State private var errorShow = false
     @State private var errorInfo = ""
     @State private var selectUnusedContainerSheetShow = false
@@ -108,6 +110,57 @@ struct LCAppSettingsView: View {
                 Text("lc.common.data".loc)
             }
             
+            Section {
+                HStack(spacing: 14) {
+                    Image(uiImage: customIconPreview ?? (appInfo.iconIsDarkIcon(false) ?? UIImage()))
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 60, height: 60)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("自定义应用图标")
+                            .font(.headline)
+                        Text(customIconPreview == nil ? "使用原始图标" : "已设置自定义图标")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("选择") {
+                        showCustomIconPicker = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                if customIconPreview != nil {
+                    Button(role: .destructive) {
+                        let customPath = appInfo.bundlePath().appending("/LCUserCustomIcon.png")
+                        try? FileManager.default.removeItem(atPath: customPath)
+                        appInfo.clearIconCache()
+                        customIconPreview = nil
+                    } label: {
+                        Label("恢复原始图标", systemImage: "arrow.uturn.backward")
+                    }
+                }
+            } header: {
+                Text("应用图标")
+            } footer: {
+                Text("仅更改 LiveContainer 内的应用列表图标，不修改原应用包或签名。")
+            }
+            .sheet(isPresented: $showCustomIconPicker) {
+                LCAppCustomIconPicker { image in
+                    guard let image,
+                          let data = image.pngData() else { return }
+                    let customPath = appInfo.bundlePath().appending("/LCUserCustomIcon.png")
+                    do {
+                        try data.write(to: URL(fileURLWithPath: customPath), options: .atomic)
+                        appInfo.clearIconCache()
+                        customIconPreview = UIImage(contentsOfFile: customPath)
+                    } catch {
+                        errorInfo = error.localizedDescription
+                        errorShow = true
+                    }
+                }
+            }
+
             Section {
                 List{
                     ForEach(model.uiContainers.indices, id:\.self) { i in
@@ -891,5 +944,38 @@ extension LCAppSettingsView : LCSelectContainerViewDelegate {
         }
         appInfo.containers = model.uiContainers;
 
+    }
+}
+
+
+private struct LCAppCustomIconPicker: UIViewControllerRepresentable {
+    let onPick: (UIImage?) -> Void
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .photoLibrary
+        picker.delegate = context.coordinator
+        picker.allowsEditing = true
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onPick: onPick)
+    }
+
+    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let onPick: (UIImage?) -> Void
+        init(onPick: @escaping (UIImage?) -> Void) { self.onPick = onPick }
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            let image = (info[.editedImage] as? UIImage) ?? (info[.originalImage] as? UIImage)
+            onPick(image)
+            picker.dismiss(animated: true)
+        }
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            onPick(nil)
+            picker.dismiss(animated: true)
+        }
     }
 }
