@@ -92,7 +92,7 @@ struct AppSceneViewSwiftUI: UIViewControllerRepresentable {
         }
         
         func appSceneVC(_ vc: AppSceneViewController!, didUpdateFrom settings: UIMutableApplicationSceneSettings!, transitionContext context: Any!, lifecycleActionType actionType: UInt32) {
-            MultitaskManager.setContainerForeground(container: dataUUID, isForeground: settings.foreground)
+            MultitaskManager.setContainerForeground(container: dataUUID, isForeground: settings.isForeground)
             settings.interruptionPolicy = 0
             //settings.peripheryInsets = vc.view.window?.safeAreaInsets ?? .zero
             vc.presenter.scene.updateSettings(settings, withTransitionContext: context, completion: nil)
