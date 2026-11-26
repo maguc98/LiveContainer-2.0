@@ -12,13 +12,18 @@ import UIKit
 
 private struct LCHideNativeTabBar: ViewModifier {
     func body(content: Content) -> some View {
-        content
-            .toolbar(.hidden, for: .tabBar)
-            .onAppear {
-                // Hide UIKit's native tab bar as well, so the custom glass bar is
-                // the only navigation bar visible on newer iOS versions.
+        if #available(iOS 16.0, *) {
+            content
+                .toolbar(.hidden, for: .tabBar)
+                .onAppear {
+                    // Also hide UIKit's native tab bar so only the custom glass bar remains.
+                    UITabBar.appearance().isHidden = true
+                }
+        } else {
+            content.onAppear {
                 UITabBar.appearance().isHidden = true
             }
+        }
     }
 }
 
