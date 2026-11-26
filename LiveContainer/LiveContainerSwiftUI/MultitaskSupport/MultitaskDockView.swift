@@ -1011,7 +1011,6 @@ private struct MultitaskSwitcherView: View {
                     }
                     .padding(.bottom, 8)
                 }
-                .scrollClipDisabled()
             }
             .padding(.horizontal, 20)
             .padding(.top, 28)
