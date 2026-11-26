@@ -657,6 +657,22 @@ class AppInfoProvider {
         }
 
         let targetFrame = view.frame
+
+        // Maximized/container presentation must remain untouched: show it full-screen
+        // at its original frame without scale, perspective, shadow, or transition.
+        if isMaximized {
+            view.layer.removeAllAnimations()
+            view.isHidden = false
+            view.alpha = 1
+            view.frame = targetFrame
+            view.layer.transform = CATransform3DIdentity
+            view.layer.shadowOpacity = 0
+            view.layer.shadowRadius = 0
+            view.layer.shadowOffset = .zero
+            bringViewToFront(view, in: window)
+            return
+        }
+
         let perspective = CATransform3DIdentity
         if isHidden {
             view.layer.removeAllAnimations()
