@@ -27,6 +27,16 @@ private struct LCHideNativeTabBar: ViewModifier {
     }
 }
 
+
+private struct LCTabPressFeedbackStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.93 : 1)
+            .opacity(configuration.isPressed ? 0.78 : 1)
+            .animation(.spring(response: 0.24, dampingFraction: 0.68), value: configuration.isPressed)
+    }
+}
+
 struct LCTabView: View {
     @State var errorShow = false
     @State var crashReportShow = false
@@ -63,6 +73,7 @@ struct LCTabView: View {
                 .tag(LCTabIdentifier.settings)
         }
         .modifier(LCHideNativeTabBar())
+        .animation(.spring(response: 0.34, dampingFraction: 0.86), value: sharedModel.selectedTab)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if !hasOpenContainerApp {
                 customBottomBar
@@ -213,7 +224,7 @@ struct LCTabView: View {
             .padding(.horizontal, isSelected ? 9 : 0)
             .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(LCTabPressFeedbackStyle())
         .accessibilityLabel(title)
     }
 
