@@ -1027,12 +1027,13 @@ private struct MultitaskSwitcherView: View {
             }
             .padding(.horizontal, 13)
             .padding(.vertical, 38)
-            .scaleEffect(appeared ? 1 : 0.94)
-            .opacity(appeared ? 1 : 0)
+            .scaleEffect(appeared ? 1 : 0.88, anchor: .bottom)
+            .rotation3DEffect(.degrees(appeared ? 0 : -7), axis: (x: 1, y: 0, z: 0), perspective: 0.7)
+            .offset(y: appeared ? 0 : 70)
         }
         .ignoresSafeArea()
         .onAppear {
-            withAnimation(.spring(response: 0.52, dampingFraction: 0.84)) { appeared = true }
+            withAnimation(.spring(response: 0.68, dampingFraction: 0.72, blendDuration: 0.2)) { appeared = true }
             capturePreviews()
         }
     }
@@ -1061,7 +1062,9 @@ private struct MultitaskSwitcherView: View {
                     .overlay(Circle().stroke(.white.opacity(0.6), lineWidth: 0.8))
             }
             .buttonStyle(.plain)
-            .scaleEffect(appeared ? 1 : 0.8)
+            .scaleEffect(appeared ? 1 : 0.72)
+            .rotationEffect(.degrees(appeared ? 0 : 35))
+            .offset(x: appeared ? 0 : 22, y: appeared ? 0 : -10)
             .accessibilityLabel("关闭后台应用")
         }
     }
@@ -1130,9 +1133,10 @@ private struct MultitaskSwitcherView: View {
             .scaleEffect(pressedUUID == app.appUUID ? 0.96 : 1)
         }
         .buttonStyle(.plain)
-        .opacity(appeared ? 1 : 0)
-        .offset(y: appeared ? 0 : 18)
-        .animation(.spring(response: 0.48, dampingFraction: 0.82).delay(Double(index) * 0.055), value: appeared)
+        .offset(y: appeared ? 0 : 90)
+        .scaleEffect(appeared ? 1 : 0.82)
+        .rotation3DEffect(.degrees(appeared ? 0 : (index.isMultiple(of: 2) ? 9 : -9)), axis: (x: 0.7, y: 1, z: 0), perspective: 0.65)
+        .animation(.spring(response: 0.62, dampingFraction: 0.72, blendDuration: 0.18).delay(Double(index) * 0.075), value: appeared)
     }
 
     @ViewBuilder private func previewContent(for app: DockAppModel) -> some View {
@@ -1193,8 +1197,8 @@ private struct MultitaskSwitcherView: View {
     }
 
     private func close() {
-        withAnimation(.spring(response: 0.36, dampingFraction: 0.82)) { appeared = false }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+        withAnimation(.spring(response: 0.52, dampingFraction: 0.74, blendDuration: 0.18)) { appeared = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.42) {
             dockManager.dismissSwitcher()
         }
     }
