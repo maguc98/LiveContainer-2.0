@@ -130,7 +130,8 @@ struct LCTabView: View {
             case "certificate":
                 sharedModel.selectedTab = .settings
             case "source":
-                sharedModel.selectedTab = .sources
+                // Sources is no longer exposed in the main navigation; redirect to Apps.
+                sharedModel.selectedTab = .apps
             default:
                 return
             }
