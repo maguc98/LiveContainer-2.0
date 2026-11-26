@@ -287,13 +287,13 @@ class AppInfoProvider {
         )
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(sceneWindowDidBecomeAvailable),
+            selector: #selector(sceneWindowDidBecomeAvailable(_:)),
             name: UIApplication.didBecomeActiveNotification,
             object: nil
         )
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(sceneWindowDidBecomeAvailable),
+            selector: #selector(sceneWindowDidBecomeAvailable(_:)),
             name: UIWindow.didBecomeKeyNotification,
             object: nil
         )
@@ -302,7 +302,7 @@ class AppInfoProvider {
         }
     }
 
-    @objc private func sceneWindowDidBecomeAvailable() {
+    @objc private func sceneWindowDidBecomeAvailable(_ notification: Notification) {
         DispatchQueue.main.async {
             self.attachWindowHostingViewIfNeeded()
             if !self.apps.isEmpty && !self.isVisible {
