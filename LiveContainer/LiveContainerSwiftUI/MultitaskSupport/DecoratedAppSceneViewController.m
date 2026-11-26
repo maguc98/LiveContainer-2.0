@@ -18,7 +18,6 @@
 @property(nonatomic, copy) dispatch_block_t toolbarReturnBlock;
 @property(nonatomic) BOOL toolbarIsManuallyPositioned;
 @property(nonatomic) BOOL toolbarIsHiddenByUser;
-@property(nonatomic, strong) UIButton *toolbarRestoreButton;
 @end
 
 static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UIColor *backgroundColor) {
@@ -579,30 +578,20 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
     self.toolbarIsHiddenByUser = YES;
     self.navigationBar.hidden = YES;
     self.navigationBar.alpha = 0.0;
-    if (!self.toolbarRestoreButton) {
-        UIButton *restore = [UIButton buttonWithType:UIButtonTypeSystem];
-        restore.translatesAutoresizingMaskIntoConstraints = NO;
-        restore.backgroundColor = [UIColor colorWithWhite:0.2 alpha:0.18];
-        restore.layer.cornerRadius = 10.0;
-        [restore setImage:[UIImage systemImageNamed:@"chevron.down"] forState:UIControlStateNormal];
-        restore.tintColor = UIColor.secondaryLabelColor;
-        [restore addTarget:self action:@selector(restoreFloatingToolbar) forControlEvents:UIControlEventTouchUpInside];
-        self.toolbarRestoreButton = restore;
-        [self.view addSubview:restore];
-        [NSLayoutConstraint activateConstraints:@[
-            [restore.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
-            [restore.topAnchor constraintEqualToAnchor:self.view.topAnchor constant:2.0],
-            [restore.widthAnchor constraintEqualToConstant:48.0],
-            [restore.heightAnchor constraintEqualToConstant:20.0]
-        ]];
-    }
-    self.toolbarRestoreButton.hidden = NO;
 }
+
 - (void)restoreFloatingToolbar {
     self.toolbarIsHiddenByUser = NO;
-    self.toolbarRestoreButton.hidden = YES;
     self.navigationBar.hidden = NO;
     self.navigationBar.alpha = 1.0;
+}
+
+- (void)toggleFloatingToolbarVisibility {
+    if (self.toolbarIsHiddenByUser) {
+        [self restoreFloatingToolbar];
+    } else {
+        [self hideFloatingToolbar];
+    }
 }
 
 - (void)resizeWindow:(UIPanGestureRecognizer*)sender {
