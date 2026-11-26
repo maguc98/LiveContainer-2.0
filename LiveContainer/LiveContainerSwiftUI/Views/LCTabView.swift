@@ -31,7 +31,7 @@ struct LCTabView: View {
     @State var errorShow = false
     @State var crashReportShow = false
     @State private var showHiddenSources = false
-    @State private var hasForegroundContainerApp = MultitaskManager.hasForegroundContainer()
+    @State private var hasOpenContainerApp = MultitaskManager.isMultitasking()
     @State var errorInfo = ""
     
     @EnvironmentObject var sharedModel : SharedModel
@@ -64,21 +64,21 @@ struct LCTabView: View {
         }
         .modifier(LCHideNativeTabBar())
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !hasForegroundContainerApp {
+            if !hasOpenContainerApp {
                 customBottomBar
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.32, dampingFraction: 0.84), value: hasForegroundContainerApp)
+        .animation(.spring(response: 0.32, dampingFraction: 0.84), value: hasOpenContainerApp)
         .onAppear {
-            hasForegroundContainerApp = MultitaskManager.hasForegroundContainer()
+            hasOpenContainerApp = MultitaskManager.isMultitasking()
         }
         .onReceive(
             NotificationCenter.default.publisher(for: .lcMultitaskContainerStateDidChange)
                 .receive(on: DispatchQueue.main)
         ) { _ in
             withAnimation(.spring(response: 0.32, dampingFraction: 0.84)) {
-                hasForegroundContainerApp = MultitaskManager.hasForegroundContainer()
+                hasOpenContainerApp = MultitaskManager.isMultitasking()
             }
         }
         .tint(Color(red: 0.29, green: 0.43, blue: 0.94))
