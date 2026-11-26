@@ -375,22 +375,38 @@ class AppInfoProvider {
         applyNewFrame(frame, for: hostingController, animated: animated)
     }
 
-    /// Moves the side rail while keeping its entire body inside the usable safe area.
-    func moveDockVertically(toCenterY centerY: CGFloat) {
+    /// Allows long-press dragging anywhere, then settles the rail against the nearest screen edge.
+    func moveDockFreely(to point: CGPoint) {
         guard let hostingController, let keyWindow else { return }
         let bounds = keyWindow.bounds
-        let height = hostingController.view.bounds.height > 0 ? hostingController.view.bounds.height : 148
+        let size = hostingController.view.bounds.size
         let minY = safeAreaInsets.top + Constants.dockVerticalMargin
-        let maxY = max(minY, bounds.height - safeAreaInsets.bottom - height - Constants.dockVerticalMargin)
-        let originY = max(minY, min(maxY, centerY - height / 2))
-        requestedDockCenterY = originY + height / 2
-
+        let maxY = max(minY, bounds.height - safeAreaInsets.bottom - size.height - Constants.dockVerticalMargin)
+        let minX: CGFloat = 0
+        let maxX = max(0, bounds.width - size.width)
+        let originX = max(minX, min(maxX, point.x - size.width / 2))
+        let originY = max(minY, min(maxY, point.y - size.height / 2))
+        requestedDockCenterY = originY + size.height / 2
         var frame = hostingController.view.frame
-        frame.origin.y = originY
+        frame.origin = CGPoint(x: originX, y: originY)
         hostingController.view.frame = frame
     }
 
-    func finishDockVerticalDrag() {
+    func settleDockToNearestEdge(compact: Bool) {
+        guard let hostingController, let keyWindow else { return }
+        let bounds = keyWindow.bounds
+        let frame = hostingController.view.frame
+        let dockSize = frame.size
+        let left = frame.midX < bounds.midX
+        let targetX: CGFloat = left ? 0 : max(0, bounds.width - dockSize.width)
+        let minY = safeAreaInsets.top + Constants.dockVerticalMargin
+        let maxY = max(minY, bounds.height - safeAreaInsets.bottom - dockSize.height - Constants.dockVerticalMargin)
+        let targetY = max(minY, min(maxY, frame.origin.y))
+        requestedDockCenterY = targetY + dockSize.height / 2
+        let target = CGRect(x: targetX, y: targetY, width: dockSize.width, height: dockSize.height)
+        UIView.animate(withDuration: 0.28, delay: 0, usingSpringWithDamping: 0.82, initialSpringVelocity: 0.35, options: [.curveEaseOut, .allowUserInteraction]) {
+            hostingController.view.frame = target
+        }
         let feedback = UIImpactFeedbackGenerator(style: .soft)
         feedback.impactOccurred()
     }
@@ -1009,8 +1025,9 @@ public struct MultitaskDockSwiftView: View {
     @State private var switcherWasPresented = false
     @State private var isRepositioningRail = false
     @State private var didRepositionRail = false
+    @State private var compactRail = false
 
-    // A deliberate long press turns the rail into a vertical grab handle.
+    // Long press, then freely drag anywhere. Moving into the screen triggers a compact state.
     private var repositionGesture: some Gesture {
         LongPressGesture(minimumDuration: 0.34, maximumDistance: 12)
             .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
@@ -1018,12 +1035,14 @@ public struct MultitaskDockSwiftView: View {
                 guard case .second(true, let drag?) = value else { return }
                 isRepositioningRail = true
                 didRepositionRail = true
-                dockManager.moveDockVertically(toCenterY: drag.location.y)
+                dockManager.moveDockFreely(to: drag.location)
+                let edgeInset: CGFloat = 84
+                compactRail = drag.location.x > edgeInset && drag.location.x < UIScreen.main.bounds.width - edgeInset
             }
             .onEnded { value in
                 if case .second(true, let drag?) = value {
-                    dockManager.moveDockVertically(toCenterY: drag.location.y)
-                    dockManager.finishDockVerticalDrag()
+                    dockManager.moveDockFreely(to: drag.location)
+                    dockManager.settleDockToNearestEdge(compact: compactRail)
                 }
                 isRepositioningRail = false
             }
@@ -1114,7 +1133,7 @@ public struct MultitaskDockSwiftView: View {
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().strokeBorder(Color.primary.opacity(isRepositioningRail ? 0.24 : 0.12), lineWidth: isRepositioningRail ? 1.1 : 0.7))
         .shadow(color: Color.black.opacity(isRepositioningRail ? 0.15 : 0.08), radius: isRepositioningRail ? 10 : 7, x: 0, y: 3)
-        .scaleEffect(isRepositioningRail ? 1.04 : 1)
+        .scaleEffect(compactRail ? 0.72 : (isRepositioningRail ? 1.04 : 1))
         .animation(.spring(response: 0.28, dampingFraction: 0.78), value: isRepositioningRail)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
