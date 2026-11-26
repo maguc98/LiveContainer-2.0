@@ -13,6 +13,7 @@ class LCAppModel: ObservableObject, Hashable {
     
     @Published var appInfo : LCAppInfo
     
+    @Published var iconOverrideRevision = 0
     @Published var isAppRunning = false
     @Published var isSigningInProgress = false
     @Published var signProgress = 0.0
