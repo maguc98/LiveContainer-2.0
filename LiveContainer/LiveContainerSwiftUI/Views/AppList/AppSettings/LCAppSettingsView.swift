@@ -35,7 +35,7 @@ struct LCAppSettingsView: View {
     @State var choosingStorage = false
     
     @State private var showCustomIconPicker = false
-    @State private var customIconPreview: UIImage? = UIImage(contentsOfFile: (model.appInfo.bundlePath() ?? "") + "/LCUserCustomIcon.png")
+    @State private var customIconPreview: UIImage? = nil
     @State private var errorShow = false
     @State private var errorInfo = ""
     @State private var selectUnusedContainerSheetShow = false
@@ -135,6 +135,7 @@ struct LCAppSettingsView: View {
                         let customPath = appInfo.bundlePath().appending("/LCUserCustomIcon.png")
                         try? FileManager.default.removeItem(atPath: customPath)
                         appInfo.clearIconCache()
+                        model.iconOverrideRevision += 1
                         customIconPreview = nil
                     } label: {
                         Label("恢复原始图标", systemImage: "arrow.uturn.backward")
@@ -153,6 +154,7 @@ struct LCAppSettingsView: View {
                     do {
                         try data.write(to: URL(fileURLWithPath: customPath), options: .atomic)
                         appInfo.clearIconCache()
+                        model.iconOverrideRevision += 1
                         customIconPreview = UIImage(contentsOfFile: customPath)
                     } catch {
                         errorInfo = error.localizedDescription
