@@ -36,8 +36,9 @@ enum JITEnablerType : Int, CaseIterable, Identifiable {
 private struct LCSettingsScrollBackgroundModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 16.0, *) {
-            content.scrollContentBackground(.hidden)
-        } else {
+            content
+                .scrollContentBackground(.hidden)
+                } else {
             content
         }
     }
@@ -82,6 +83,7 @@ struct LCSettingsView: View {
     @EnvironmentObject private var sharedModel : SharedModel
     
     @State private var isViewAppeared = false
+    @State private var settingsContentAppeared = false
     
     let storeName = LCUtils.getStoreName()
     
