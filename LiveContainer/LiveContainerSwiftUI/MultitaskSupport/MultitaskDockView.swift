@@ -168,14 +168,8 @@ class AppInfoProvider {
         
         // MARK: - Animation & Interaction
         static var dockHiddenOffset: CGFloat {
-            get {
-                let ans = LCUtils.appGroupUserDefault.double(forKey: "LCDockWidth")
-                if ans != 0 {
-                    return ans * 2 / 3
-                } else {
-                    return 50
-                }
-            }
+            // Leave a small, consistently reachable tab exposed at the screen edge.
+            return 30
         }
         static var hideGestureThreshold: CGFloat {
             get {
@@ -203,8 +197,8 @@ class AppInfoProvider {
         static let bringToFrontScale: CGFloat = 1.02
     }
     
-    // The new navigation handle is a narrow rail fixed to the right edge.
-    public var dockWidth: CGFloat { 34.0 }
+    // Width includes the enlarged visual rail and its swipe target.
+    public var dockWidth: CGFloat { 46.0 }
 
     // Calculate icon size based on dock width
     private func calculateIconSize(for width: CGFloat) -> CGFloat {
