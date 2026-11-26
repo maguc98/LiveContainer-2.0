@@ -31,6 +31,7 @@ struct LCTabView: View {
     @State var errorShow = false
     @State var crashReportShow = false
     @State private var showHiddenSources = false
+    @State private var hasRunningContainerApp = MultitaskManager.isMultitasking()
     @State var errorInfo = ""
     
     @EnvironmentObject var sharedModel : SharedModel
@@ -63,12 +64,23 @@ struct LCTabView: View {
         }
         .modifier(LCHideNativeTabBar())
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if sharedModel.selectedTab != .apps {
+            if !hasRunningContainerApp {
                 customBottomBar
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.32, dampingFraction: 0.84), value: sharedModel.selectedTab)
+        .animation(.spring(response: 0.32, dampingFraction: 0.84), value: hasRunningContainerApp)
+        .onAppear {
+            hasRunningContainerApp = MultitaskManager.isMultitasking()
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(for: .lcMultitaskContainerStateDidChange)
+                .receive(on: DispatchQueue.main)
+        ) { _ in
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.84)) {
+                hasRunningContainerApp = MultitaskManager.isMultitasking()
+            }
+        }
         .tint(Color(red: 0.29, green: 0.43, blue: 0.94))
         .background(Color(uiColor: .systemGroupedBackground))
         .sheet(isPresented: $showHiddenSources) {
