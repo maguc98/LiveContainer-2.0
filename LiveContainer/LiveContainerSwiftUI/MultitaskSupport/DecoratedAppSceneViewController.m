@@ -17,6 +17,8 @@
 @property(nonatomic) bool isAppTerminationRequested;
 @property(nonatomic, copy) dispatch_block_t toolbarReturnBlock;
 @property(nonatomic) BOOL toolbarIsManuallyPositioned;
+@property(nonatomic) BOOL toolbarIsHiddenByUser;
+@property(nonatomic, strong) UIButton *toolbarRestoreButton;
 @end
 
 static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UIColor *backgroundColor) {
@@ -224,6 +226,9 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
 
     self.navigationBar = navigationBar;
     self.navigationItem = navigationBar.items.firstObject;
+    UIBarButtonItem *hideToolbarButton = [[UIBarButtonItem alloc] initWithImage:[UIImage systemImageNamed:@"eye.slash"] style:UIBarButtonItemStylePlain target:self action:@selector(hideFloatingToolbar)];
+    hideToolbarButton.tintColor = UIColor.secondaryLabelColor;
+    self.navigationItem.leftBarButtonItem = hideToolbarButton;
     if (!self.navigationBar.superview) {
         // Keep the navigation bar out of the vertical stack so it floats above app content.
         [self.view addSubview:self.navigationBar];
@@ -534,7 +539,6 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
 }
 
 - (void)moveWindow:(UIPanGestureRecognizer*)sender {
-    // Drag only the floating toolbar. The app itself remains full-screen.
     if (sender.state == UIGestureRecognizerStateBegan) {
         self.toolbarIsManuallyPositioned = YES;
         if (self.toolbarReturnBlock) {
@@ -542,31 +546,23 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
             self.toolbarReturnBlock = nil;
         }
     }
-
     CGPoint point = [sender translationInView:self.view];
     [sender setTranslation:CGPointZero inView:self.view];
-
     CGRect barFrame = self.navigationBar.frame;
     barFrame.origin.x += point.x;
     barFrame.origin.y += point.y;
-
-    // Keep the floating controls reachable while allowing free placement.
     CGRect bounds = self.view.bounds;
-    CGFloat safeTop = self.view.window.safeAreaInsets.top;
-    CGFloat safeBottom = self.view.window.safeAreaInsets.bottom;
     barFrame.origin.x = MIN(MAX(0.0, barFrame.origin.x), MAX(0.0, CGRectGetWidth(bounds) - CGRectGetWidth(barFrame)));
-    barFrame.origin.y = MIN(MAX(0.0, barFrame.origin.y), MAX(safeTop, CGRectGetHeight(bounds) - safeBottom - CGRectGetHeight(barFrame)));
+    barFrame.origin.y = MIN(MAX(0.0, barFrame.origin.y), MAX(0.0, CGRectGetHeight(bounds) - CGRectGetHeight(barFrame)));
     self.navigationBar.frame = barFrame;
-
     if (sender.state == UIGestureRecognizerStateEnded || sender.state == UIGestureRecognizerStateCancelled) {
         __weak typeof(self) weakSelf = self;
         dispatch_block_t returnBlock = dispatch_block_create(0, ^{
             __strong typeof(weakSelf) strongSelf = weakSelf;
             if (!strongSelf) return;
-            CGFloat topY = strongSelf.view.window.safeAreaInsets.top + 6.0;
             CGRect target = strongSelf.navigationBar.frame;
-            target.origin.x = 0.0;
-            target.origin.y = topY;
+            target.origin.x = (CGRectGetWidth(strongSelf.view.bounds) - CGRectGetWidth(target)) / 2.0;
+            target.origin.y = strongSelf.view.window.safeAreaInsets.top + 6.0;
             [UIView animateWithDuration:0.45 delay:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
                 strongSelf.navigationBar.frame = target;
             } completion:nil];
@@ -576,6 +572,37 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
         self.toolbarReturnBlock = returnBlock;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), returnBlock);
     }
+}
+
+
+- (void)hideFloatingToolbar {
+    self.toolbarIsHiddenByUser = YES;
+    self.navigationBar.hidden = YES;
+    self.navigationBar.alpha = 0.0;
+    if (!self.toolbarRestoreButton) {
+        UIButton *restore = [UIButton buttonWithType:UIButtonTypeSystem];
+        restore.translatesAutoresizingMaskIntoConstraints = NO;
+        restore.backgroundColor = [UIColor colorWithWhite:0.2 alpha:0.18];
+        restore.layer.cornerRadius = 10.0;
+        [restore setImage:[UIImage systemImageNamed:@"chevron.down"] forState:UIControlStateNormal];
+        restore.tintColor = UIColor.secondaryLabelColor;
+        [restore addTarget:self action:@selector(restoreFloatingToolbar) forControlEvents:UIControlEventTouchUpInside];
+        self.toolbarRestoreButton = restore;
+        [self.view addSubview:restore];
+        [NSLayoutConstraint activateConstraints:@[
+            [restore.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
+            [restore.topAnchor constraintEqualToAnchor:self.view.topAnchor constant:2.0],
+            [restore.widthAnchor constraintEqualToConstant:48.0],
+            [restore.heightAnchor constraintEqualToConstant:20.0]
+        ]];
+    }
+    self.toolbarRestoreButton.hidden = NO;
+}
+- (void)restoreFloatingToolbar {
+    self.toolbarIsHiddenByUser = NO;
+    self.toolbarRestoreButton.hidden = YES;
+    self.navigationBar.hidden = NO;
+    self.navigationBar.alpha = 1.0;
 }
 
 - (void)resizeWindow:(UIPanGestureRecognizer*)sender {
@@ -604,8 +631,8 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
     // Keep the toolbar reachable below the status bar / Dynamic Island when the app scene is full-screen.
     CGFloat navBarHeight = 44.0;
 
-    self.navigationBar.alpha = 1.0;
-    self.navigationBar.hidden = NO;
+    self.navigationBar.alpha = self.toolbarIsHiddenByUser ? 0.0 : 1.0;
+    self.navigationBar.hidden = self.toolbarIsHiddenByUser;
 
     // Position the toolbar as an overlay only; never alter the app scene's full-window constraints.
     CGRect navigationBarFrame = CGRectMake(
