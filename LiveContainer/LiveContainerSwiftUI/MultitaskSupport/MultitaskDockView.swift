@@ -319,7 +319,7 @@ class AppInfoProvider {
         guard let window = self.keyWindow,
               let rootViewController = window.rootViewController else { return }
 
-        let rootView = rootViewController.view
+        guard let rootView = rootViewController.view else { return }
         let attachmentView = rootView.subviews.first ?? rootView
         if self.windowHostingView.superview !== attachmentView {
             self.windowHostingView.removeFromSuperview()
