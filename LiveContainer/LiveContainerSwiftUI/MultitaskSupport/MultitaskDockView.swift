@@ -1063,9 +1063,13 @@ public struct MultitaskDockSwiftView: View {
                 } else if abs(value.translation.height) > 42,
                           abs(value.translation.height) > abs(value.translation.width) * 1.25 {
                     dockManager.cycleForegroundApp(value.translation.height < 0 ? 1 : -1)
-                } else if value.translation.width < -72 && elapsed < 0.48 {
-                    // A quick inward flick returns to the LiveContainer main screen.
-                    dockManager.returnToMainApp()
+                } else if value.translation.width > 72 {
+                    // Swipe outward/right to tuck the rail, leaving a small visible tab.
+                    dockManager.hideDockToSide()
+                } else if value.translation.width < -72 {
+                    // Swipe inward/left to reveal the rail. The larger hit area makes
+                    // the gesture usable even when only the edge tab is visible.
+                    dockManager.showDockFromHidden()
                 }
 
                 gestureStartedAt = nil
@@ -1075,33 +1079,33 @@ public struct MultitaskDockSwiftView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "chevron.left")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.secondary.opacity(0.75))
+        VStack(spacing: 10) {
+            Image(systemName: "chevron.up")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.primary.opacity(0.48))
             Button {
                 dockManager.toggleForegroundToolbar()
             } label: {
                 ZStack {
-                    Circle().fill(Color.accentColor.opacity(0.18)).frame(width: 25, height: 25)
-                    Circle().fill(Color.accentColor).frame(width: 10, height: 10)
-                    Circle().stroke(Color.white.opacity(0.9), lineWidth: 1.2).frame(width: 15, height: 15)
+                    Circle().fill(Color.accentColor.opacity(0.20)).frame(width: 34, height: 34)
+                    Circle().fill(Color.accentColor).frame(width: 13, height: 13)
+                    Circle().stroke(Color.primary.opacity(0.30), lineWidth: 1.1).frame(width: 20, height: 20)
                 }
-                .frame(width: 30, height: 32)
-                .contentShape(Circle())
+                .frame(width: 42, height: 42)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("显示或隐藏顶部应用控制栏")
-            Capsule().fill(Color.primary.opacity(0.16)).frame(width: 2, height: 42)
-            Image(systemName: "chevron.right")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.secondary.opacity(0.75))
+            Capsule().fill(Color.primary.opacity(0.22)).frame(width: 2, height: 48)
+            Image(systemName: "chevron.down")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.primary.opacity(0.48))
         }
-        .padding(.vertical, 8)
-        .frame(width: 34, height: 132)
-        .background(.regularMaterial, in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.primary.opacity(isRepositioningRail ? 0.22 : 0.09), lineWidth: isRepositioningRail ? 1.3 : 0.8))
-        .shadow(color: Color.black.opacity(isRepositioningRail ? 0.16 : 0.08), radius: isRepositioningRail ? 13 : 8, x: 0, y: 3)
+        .padding(.vertical, 10)
+        .frame(width: 46, height: 160)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.primary.opacity(isRepositioningRail ? 0.24 : 0.12), lineWidth: isRepositioningRail ? 1.35 : 0.8))
+        .shadow(color: Color.black.opacity(isRepositioningRail ? 0.17 : 0.10), radius: isRepositioningRail ? 15 : 10, x: 0, y: 4)
         .scaleEffect(isRepositioningRail ? 1.06 : 1)
         .animation(.spring(response: 0.24, dampingFraction: 0.72), value: isRepositioningRail)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
