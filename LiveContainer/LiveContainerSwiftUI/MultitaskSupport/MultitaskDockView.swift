@@ -1124,7 +1124,6 @@ public struct MultitaskDockSwiftView: View {
         .background(Color.clear)
     }
 }
-}
 
 // MARK: - Full-screen Container App Switcher
 @available(iOS 16.0, *)
