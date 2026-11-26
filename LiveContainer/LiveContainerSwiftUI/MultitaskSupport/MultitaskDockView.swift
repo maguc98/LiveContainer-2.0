@@ -1091,32 +1091,30 @@ public struct MultitaskDockSwiftView: View {
         VStack(spacing: 10) {
             Image(systemName: "chevron.up")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.primary.opacity(0.55))
+                .foregroundStyle(.primary.opacity(0.48))
             Button {
                 dockManager.toggleForegroundToolbar()
             } label: {
-                Circle()
-                    .fill(Color(red: 0.32, green: 0.46, blue: 0.66))
-                    .frame(width: 14, height: 14)
-                    .overlay(Circle().stroke(Color.white.opacity(0.95), lineWidth: 1.4))
-                    .shadow(color: .black.opacity(0.20), radius: 3, x: 0, y: 1)
-                    .frame(width: 42, height: 42)
-                    .contentShape(Rectangle())
+                ZStack {
+                    Circle().fill(Color.accentColor.opacity(0.20)).frame(width: 44, height: 44)
+                    Circle().fill(Color.accentColor).frame(width: 18, height: 18)
+                    Circle().stroke(Color.primary.opacity(0.30), lineWidth: 1.1).frame(width: 27, height: 27)
+                }
+                .frame(width: 52, height: 52)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("显示或隐藏顶部应用控制栏")
-            Capsule()
-                .fill(Color.primary.opacity(0.35))
-                .frame(width: 14, height: 48)
             Image(systemName: "chevron.down")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.primary.opacity(0.55))
+                .foregroundStyle(.primary.opacity(0.48))
         }
         .padding(.vertical, 10)
         .frame(width: 58, height: 184)
-        // Transparent hit-area only. The capsule background is intentionally removed.
-        .background(Color.clear)
-        .scaleEffect(isRepositioningRail ? 1.04 : 1)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.primary.opacity(isRepositioningRail ? 0.24 : 0.12), lineWidth: isRepositioningRail ? 1.35 : 0.8))
+        .shadow(color: Color.black.opacity(isRepositioningRail ? 0.17 : 0.10), radius: isRepositioningRail ? 15 : 10, x: 0, y: 4)
+        .scaleEffect(isRepositioningRail ? 1.06 : 1)
         .animation(.spring(response: 0.24, dampingFraction: 0.72), value: isRepositioningRail)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
@@ -1125,6 +1123,7 @@ public struct MultitaskDockSwiftView: View {
         .accessibilityHint("长按后上下拖动可调整侧边栏位置")
         .background(Color.clear)
     }
+}
 }
 
 // MARK: - Full-screen Container App Switcher
