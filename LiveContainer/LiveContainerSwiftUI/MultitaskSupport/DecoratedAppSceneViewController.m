@@ -348,17 +348,28 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
 
 - (void)minimizeWindow {
     if (self.view.hidden) return;
-    [UIView animateWithDuration:0.3 delay:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
-        self.view.alpha = 0;
-        self.view.transform = CGAffineTransformMakeScale(0.1, 0.1);
+
+    // Animate toward the multitask rail instead of collapsing to an almost invisible point.
+    CGFloat railOffset = MAX(36.0, MIN(76.0, self.view.superview.bounds.size.width * 0.12));
+    [UIView animateWithDuration:0.34
+                          delay:0
+         usingSpringWithDamping:0.88
+          initialSpringVelocity:0.15
+                        options:UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionCurveEaseInOut
+                     animations:^{
+        self.view.alpha = 0.08;
+        self.view.transform = CGAffineTransformConcat(
+            CGAffineTransformMakeScale(0.86, 0.86),
+            CGAffineTransformMakeTranslation(railOffset, 0)
+        );
     } completion:^(BOOL finished) {
         if (!finished) return;
         self.view.hidden = YES;
+        self.view.alpha = 1.0;
         self.view.transform = CGAffineTransformIdentity;
         [self.view.superview sendSubviewToBack:self.view];
     }];
 }
-
 - (void)minimizeWindowPiP {
     [UIView animateWithDuration:0.3 delay:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
         self.view.alpha = 0;
