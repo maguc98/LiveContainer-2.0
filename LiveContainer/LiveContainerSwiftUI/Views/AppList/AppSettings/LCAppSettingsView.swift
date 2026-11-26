@@ -36,6 +36,7 @@ struct LCAppSettingsView: View {
     
     @State private var showCustomIconPicker = false
     @State private var customIconPreview: UIImage? = nil
+    @State private var iconPreviewPulse = false
     @State private var errorShow = false
     @State private var errorInfo = ""
     @State private var selectUnusedContainerSheetShow = false
@@ -117,6 +118,9 @@ struct LCAppSettingsView: View {
                         .scaledToFit()
                         .frame(width: 60, height: 60)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .scaleEffect(iconPreviewPulse ? 1.055 : 1)
+                        .rotationEffect(.degrees(iconPreviewPulse ? 2 : 0))
+                        .shadow(color: .blue.opacity(iconPreviewPulse ? 0.18 : 0.04), radius: iconPreviewPulse ? 10 : 3, y: 3)
                     VStack(alignment: .leading, spacing: 4) {
                         Text("自定义应用图标")
                             .font(.headline)
@@ -125,10 +129,13 @@ struct LCAppSettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Button("选择") {
+                    Button {
                         showCustomIconPicker = true
+                    } label: {
+                        Label("选择", systemImage: "photo")
+                            .font(.subheadline.weight(.semibold))
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(LCIconPickerButtonStyle())
                 }
                 if customIconPreview != nil {
                     Button(role: .destructive) {
@@ -136,7 +143,10 @@ struct LCAppSettingsView: View {
                         try? FileManager.default.removeItem(atPath: customPath)
                         appInfo.clearIconCache()
                         model.iconOverrideRevision += 1
-                        customIconPreview = nil
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.76)) {
+                            customIconPreview = nil
+                            iconPreviewPulse = false
+                        }
                     } label: {
                         Label("恢复原始图标", systemImage: "arrow.uturn.backward")
                     }
@@ -155,7 +165,13 @@ struct LCAppSettingsView: View {
                         try data.write(to: URL(fileURLWithPath: customPath), options: .atomic)
                         appInfo.clearIconCache()
                         model.iconOverrideRevision += 1
-                        customIconPreview = UIImage(contentsOfFile: customPath)
+                        withAnimation(.spring(response: 0.46, dampingFraction: 0.72)) {
+                            customIconPreview = UIImage(contentsOfFile: customPath)
+                            iconPreviewPulse = true
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.42) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { iconPreviewPulse = false }
+                        }
                     } catch {
                         errorInfo = error.localizedDescription
                         errorShow = true
@@ -979,5 +995,20 @@ private struct LCAppCustomIconPicker: UIViewControllerRepresentable {
             onPick(nil)
             picker.dismiss(animated: true)
         }
+    }
+}
+
+private struct LCIconPickerButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(.horizontal, 13)
+            .padding(.vertical, 9)
+            .background {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.accentColor.opacity(configuration.isPressed ? 0.72 : 1))
+            }
+            .foregroundColor(.white)
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+            .animation(.spring(response: 0.26, dampingFraction: 0.62), value: configuration.isPressed)
     }
 }
