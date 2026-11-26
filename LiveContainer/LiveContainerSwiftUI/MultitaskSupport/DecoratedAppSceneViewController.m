@@ -564,11 +564,13 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
     [self.view layoutIfNeeded];
 
     BOOL bottomWindowBar = [NSUserDefaults.lcSharedDefaults boolForKey:@"LCMultitaskBottomWindowBar"];
-    BOOL hideWindowBar = MultitaskDockManager.shared.isCollapsed && self.isMaximized;
+    // Never hide the floating controls when the dock collapses or app state changes.
+    // Keeping this overlay visible prevents the title pill from becoming unreachable.
+    BOOL hideWindowBar = NO;
     CGFloat navBarHeight = 44.0;
 
-    self.navigationBar.alpha = hideWindowBar ? 0.0 : 1.0;
-    self.navigationBar.hidden = hideWindowBar;
+    self.navigationBar.alpha = 1.0;
+    self.navigationBar.hidden = NO;
 
     // Position the toolbar as an overlay only; never alter the app scene's full-window constraints.
     CGRect navigationBarFrame = CGRectMake(
