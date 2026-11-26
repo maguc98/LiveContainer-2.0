@@ -1001,9 +1001,13 @@ struct CollapsedDockView: View {
                 .fill(Color(red: 0.88, green: 0.93, blue: 0.99).opacity(isHidden ? 0.48 : 0.82))
                 .frame(width: dockManager.adaptiveIconSize, height: dockManager.adaptiveIconSize)
 
-            Image(systemName: isHidden ? "eye.slash" : "chevron.up")
-                .foregroundStyle(Color(red: 0.38, green: 0.49, blue: 0.63))
-                .font(.system(size: dockManager.adaptiveIconSize * 0.38, weight: .semibold))
+            // High-contrast, easy-to-find dot replaces the old collapse arrow.
+            Circle()
+                .fill(Color(red: 0.34, green: 0.48, blue: 0.68))
+                .frame(width: dockManager.adaptiveIconSize * 0.22,
+                       height: dockManager.adaptiveIconSize * 0.22)
+                .overlay(Circle().stroke(Color.white.opacity(0.9), lineWidth: 1.2))
+                .shadow(color: Color.black.opacity(0.12), radius: 2, x: 0, y: 1)
         }
         .overlay(
             RoundedRectangle(cornerRadius: 15, style: .continuous)
