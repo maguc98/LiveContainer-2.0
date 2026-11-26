@@ -269,6 +269,10 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
 
     [defaults addObserver:self forKeyPath:@"LCMultitaskBottomWindowBar" options:NSKeyValueObservingOptionNew context:NULL];
     [self updateOriginalFrame];
+
+    // Prepare a subtle scale/fade entrance; animate only after the app scene is ready.
+    self.view.alpha = 0.0;
+    self.view.transform = CGAffineTransformMakeScale(0.94, 0.94);
 }
 
 
@@ -426,9 +430,10 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
         [dock removeRunningApp:self.dataUUID];
         
         self.view.layer.masksToBounds = NO;
-        [UIView transitionWithView:self.view duration:0.4 options:UIViewAnimationOptionTransitionCurlUp animations:^{
-            self.view.hidden = YES;
-        } completion:^(BOOL b){
+        [UIView animateWithDuration:0.28 delay:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
+            self.view.alpha = 0.0;
+            self.view.transform = CGAffineTransformMakeScale(0.92, 0.92);
+        } completion:^(BOOL finished){
             [self.view removeFromSuperview];
         }];
         
@@ -459,6 +464,10 @@ static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UICol
         } else {
             self.pid = vc.pid;
             [self updateOriginalFrame];
+            [UIView animateWithDuration:0.42 delay:0 usingSpringWithDamping:0.82 initialSpringVelocity:0.35 options:UIViewAnimationOptionBeginFromCurrentState animations:^{
+                self.view.alpha = 1.0;
+                self.view.transform = CGAffineTransformIdentity;
+            } completion:nil];
             if (self.pidAvailableHandler) {
                 self.pidAvailableHandler(@(self.pid), nil);
             }
