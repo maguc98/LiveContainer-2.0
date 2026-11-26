@@ -982,102 +982,223 @@ public struct MultitaskDockSwiftView: View {
 @available(iOS 16.0, *)
 private struct MultitaskSwitcherView: View {
     @ObservedObject var dockManager: MultitaskDockManager
-    private let columns = [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
+    @State private var appeared = false
+    @State private var previewImages: [String: UIImage] = [:]
+    @State private var pressedUUID: String?
+    private let columns = [GridItem(.flexible(), spacing: 13), GridItem(.flexible(), spacing: 13)]
+
+    private var activeCount: Int {
+        dockManager.apps.filter { !($0.view?.isHidden ?? true) }.count
+    }
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.34)
+            Rectangle()
+                .fill(.black.opacity(0.24))
                 .ignoresSafeArea()
-                .onTapGesture { dockManager.dismissSwitcher() }
+                .overlay(.ultraThinMaterial.opacity(0.48))
+                .onTapGesture { close() }
 
-            VStack(spacing: 18) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("后台应用")
-                            .font(.system(size: 27, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
-                        Text("正在运行 \(dockManager.apps.count) 个容器")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button {
-                        dockManager.dismissSwitcher()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 38, height: 38)
-                            .background(.thinMaterial, in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                }
+            VStack(spacing: 0) {
+                header
+                    .padding(.bottom, 20)
 
-                ScrollView {
+                ScrollView(showsIndicators: false) {
                     LazyVGrid(columns: columns, spacing: 14) {
-                        ForEach(dockManager.apps) { app in
-                            Button {
-                                _ = dockManager.bringMultitaskViewToFront(uuid: app.appUUID)
-                                dockManager.dismissSwitcher()
-                            } label: {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                            .fill(LinearGradient(
-                                                colors: [
-                                                    Color(red: 0.80, green: 0.88, blue: 1.0),
-                                                    Color(red: 0.88, green: 0.83, blue: 0.98)
-                                                ],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ))
-                                        VStack(spacing: 7) {
-                                            Image(systemName: "app.fill")
-                                                .font(.system(size: 27, weight: .medium))
-                                            Text(app.appName)
-                                                .font(.system(size: 14, weight: .semibold))
-                                                .lineLimit(1)
-                                                .minimumScaleFactor(0.75)
-                                        }
-                                        .foregroundStyle(Color(red: 0.25, green: 0.38, blue: 0.62))
-                                        .padding(10)
-                                    }
-                                    .frame(height: 132)
-
-                                    HStack(spacing: 6) {
-                                        Circle()
-                                            .fill((app.view?.isHidden ?? true) ? Color.secondary : Color.green)
-                                            .frame(width: 7, height: 7)
-                                        Text(app.appName)
-                                            .font(.system(size: 13, weight: .semibold))
-                                            .foregroundStyle(.primary)
-                                            .lineLimit(1)
-                                        Spacer(minLength: 0)
-                                    }
-                                }
-                                .padding(10)
-                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.white.opacity(0.72), lineWidth: 0.8))
-                            }
-                            .buttonStyle(.plain)
+                        ForEach(Array(dockManager.apps.enumerated()), id: \.element.id) { index, app in
+                            appCard(app, index: index)
                         }
                     }
+                    .padding(.bottom, 8)
                 }
+                .scrollClipDisabled()
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 24)
+            .padding(.horizontal, 20)
+            .padding(.top, 28)
             .padding(.bottom, 20)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Color.white.opacity(0.7), lineWidth: 1))
-            .padding(.horizontal, 14)
-            .padding(.vertical, 42)
+            .background {
+                RoundedRectangle(cornerRadius: 32, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 32, style: .continuous)
+                            .strokeBorder(.white.opacity(0.66), lineWidth: 1)
+                    }
+                    .shadow(color: .black.opacity(0.12), radius: 34, y: 16)
+            }
+            .padding(.horizontal, 13)
+            .padding(.vertical, 38)
+            .scaleEffect(appeared ? 1 : 0.94)
+            .opacity(appeared ? 1 : 0)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.clear)
         .ignoresSafeArea()
+        .onAppear {
+            withAnimation(.spring(response: 0.52, dampingFraction: 0.84)) { appeared = true }
+            capturePreviews()
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 8) {
+                    Text("后台应用")
+                        .font(.system(size: 27, weight: .bold, design: .rounded))
+                    Capsule().fill(Color.green)
+                        .frame(width: 7, height: 7)
+                        .shadow(color: .green.opacity(0.4), radius: 5)
+                }
+                Text("正在运行 \(dockManager.apps.count) 个容器 · \(activeCount) 个前台")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button(action: close) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.primary.opacity(0.65))
+                    .frame(width: 42, height: 42)
+                    .background(.white.opacity(0.45), in: Circle())
+                    .overlay(Circle().stroke(.white.opacity(0.6), lineWidth: 0.8))
+            }
+            .buttonStyle(.plain)
+            .scaleEffect(appeared ? 1 : 0.8)
+            .accessibilityLabel("关闭后台应用")
+        }
+    }
+
+    private func appCard(_ app: DockAppModel, index: Int) -> some View {
+        let isActive = !(app.view?.isHidden ?? true)
+        return Button {
+            let feedback = UIImpactFeedbackGenerator(style: .light)
+            feedback.impactOccurred()
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) { pressedUUID = app.appUUID }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                _ = dockManager.bringMultitaskViewToFront(uuid: app.appUUID)
+                close()
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                ZStack(alignment: .bottomLeading) {
+                    previewContent(for: app)
+                        .frame(height: 174)
+                        .clipped()
+
+                    LinearGradient(colors: [.clear, .black.opacity(0.34)], startPoint: .center, endPoint: .bottom)
+                    HStack(spacing: 6) {
+                        Circle().fill(isActive ? Color.green : Color.white.opacity(0.6)).frame(width: 7, height: 7)
+                        Text(isActive ? "正在运行" : "后台")
+                            .font(.system(size: 10, weight: .bold))
+                            .tracking(0.3)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(.black.opacity(0.24), in: Capsule())
+                    .padding(11)
+
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 27, height: 27)
+                        .background(.white.opacity(0.22), in: Circle())
+                        .overlay(Circle().stroke(.white.opacity(0.36), lineWidth: 0.7))
+                        .padding(11)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
+
+                HStack(spacing: 9) {
+                    appIcon(app)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(app.appName)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Text(isActive ? "点击切换到此应用" : "轻点继续使用")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 11)
+                .padding(.vertical, 12)
+            }
+            .background(.white.opacity(0.38), in: RoundedRectangle(cornerRadius: 25, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 25, style: .continuous).stroke(.white.opacity(0.72), lineWidth: 0.9))
+            .shadow(color: .black.opacity(0.06), radius: 12, y: 5)
+            .scaleEffect(pressedUUID == app.appUUID ? 0.96 : 1)
+        }
+        .buttonStyle(.plain)
+        .opacity(appeared ? 1 : 0)
+        .offset(y: appeared ? 0 : 18)
+        .animation(.spring(response: 0.48, dampingFraction: 0.82).delay(Double(index) * 0.055), value: appeared)
+    }
+
+    @ViewBuilder private func previewContent(for app: DockAppModel) -> some View {
+        if let image = previewImages[app.appUUID] {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .overlay(.black.opacity(0.02))
+        } else {
+            ZStack {
+                LinearGradient(colors: [
+                    Color(red: 0.80, green: 0.88, blue: 1.0),
+                    Color(red: 0.88, green: 0.83, blue: 0.98)
+                ], startPoint: .topLeading, endPoint: .bottomTrailing)
+                appIcon(app)
+                    .scaleEffect(2.0)
+                    .blur(radius: 18)
+                    .opacity(0.18)
+                appIcon(app)
+                    .scaleEffect(1.45)
+            }
+        }
+    }
+
+    @ViewBuilder private func appIcon(_ app: DockAppModel) -> some View {
+        if app.appName.localizedCaseInsensitiveContains("customchat") {
+            Image(systemName: "bubble.left.and.bubble.right.fill")
+                .font(.system(size: 19, weight: .semibold))
+                .foregroundStyle(Color(red: 0.38, green: 0.48, blue: 0.78))
+                .frame(width: 34, height: 34)
+                .background(.white.opacity(0.65), in: RoundedRectangle(cornerRadius: 11))
+        } else if let icon = app.appInfo?.iconIsDarkIcon(false) {
+            Image(uiImage: icon)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 34, height: 34)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        } else {
+            Image(systemName: "app.fill")
+                .font(.system(size: 17))
+                .foregroundStyle(.blue)
+                .frame(width: 34, height: 34)
+                .background(.white.opacity(0.65), in: RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    private func capturePreviews() {
+        DispatchQueue.main.async {
+            for app in dockManager.apps {
+                guard let view = app.view, view.bounds.width > 0, view.bounds.height > 0 else { continue }
+                let renderer = UIGraphicsImageRenderer(size: view.bounds.size)
+                let image = renderer.image { context in
+                    view.drawHierarchy(in: view.bounds, afterScreenUpdates: false)
+                }
+                previewImages[app.appUUID] = image
+            }
+        }
+    }
+
+    private func close() {
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.82)) { appeared = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            dockManager.dismissSwitcher()
+        }
     }
 }
-
 // MARK: - Collapsed Dock View
 @available(iOS 16.0, *)
 struct CollapsedDockView: View {
