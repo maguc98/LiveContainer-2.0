@@ -189,7 +189,7 @@ struct LCTabView: View {
 
             Spacer(minLength: 0)
 
-            bottomBarButton(title: "lc.tabView.settings".loc, symbol: "gearshape.fill", tab: .settings)
+            bottomBarButton(title: "lc.tabView.settings".loc, symbol: "gearshape.fill", tab: .settings, showTitle: false)
                 .frame(width: 50, height: 50)
                 .background(.ultraThinMaterial, in: Circle())
                 .overlay(Circle().stroke(Color.primary.opacity(0.08), lineWidth: 0.65))
@@ -201,7 +201,7 @@ struct LCTabView: View {
         .padding(.bottom, 4)
     }
 
-    private func bottomBarButton(title: String, symbol: String, tab: LCTabIdentifier) -> some View {
+    private func bottomBarButton(title: String, symbol: String, tab: LCTabIdentifier, showTitle: Bool = true) -> some View {
         let isSelected = sharedModel.selectedTab == tab
         return Button {
             withAnimation(.spring(response: 0.30, dampingFraction: 0.80)) {
@@ -212,7 +212,7 @@ struct LCTabView: View {
                 Image(systemName: symbol)
                     .font(.system(size: 16, weight: .semibold))
                     .frame(width: 22, height: 22)
-                if isSelected {
+                if isSelected && showTitle {
                     Text(title)
                         .font(.system(size: 12, weight: .semibold))
                         .lineLimit(1)
