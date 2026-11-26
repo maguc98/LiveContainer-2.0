@@ -176,6 +176,17 @@
 }
 
 - (UIImage*)iconIsDarkIcon:(BOOL)isDarkIcon {
+    // User-selected icon overrides the generated light/dark icon in LiveContainer.
+    NSString* customIconPath = [_bundlePath stringByAppendingPathComponent:@"LCUserCustomIcon.png"];
+    if ([NSFileManager.defaultManager fileExistsAtPath:customIconPath]) {
+        UIImage* customIcon = [UIImage imageWithContentsOfFile:customIconPath];
+        if (customIcon) {
+            _cachedIcon = customIcon;
+            _cachedIconDark = customIcon;
+            return customIcon;
+        }
+    }
+
     // if icon is already loaded in memory, return it
     if(_cachedIcon && !isDarkIcon) {
         return _cachedIcon;
