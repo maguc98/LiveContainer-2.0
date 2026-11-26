@@ -701,10 +701,10 @@ class AppInfoProvider {
 
             bringViewToFront(view, in: window)
             UIView.animate(
-                withDuration: 0.62,
+                withDuration: 0.54,
                 delay: 0,
-                usingSpringWithDamping: 0.78,
-                initialSpringVelocity: 0.55,
+                usingSpringWithDamping: 0.82,
+                initialSpringVelocity: 0.42,
                 options: [.curveEaseOut, .allowUserInteraction],
                 animations: {
                     view.frame = targetFrame
@@ -828,7 +828,7 @@ class AppInfoProvider {
                 }
                 return
             }
-            let railFrame = self.hostingController?.view.convert(self.hostingController?.view.bounds ?? .zero, to: host) ?? CGRect(x: host.bounds.maxX - 34, y: host.bounds.midY - 74, width: 34, height: 148)
+            let railFrame = self.hostingController?.view.convert(self.hostingController?.view.bounds ?? .zero, to: host) ?? CGRect(x: host.bounds.maxX - 28, y: host.bounds.midY - 56, width: 28, height: 112)
             let snapshotFrame = active.convert(active.bounds, to: host)
             snapshot.frame = snapshotFrame
             snapshot.layer.cornerRadius = 12
@@ -1088,34 +1088,34 @@ public struct MultitaskDockSwiftView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 6) {
             Image(systemName: "chevron.up")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.primary.opacity(0.48))
             Button {
                 dockManager.toggleForegroundToolbar()
             } label: {
                 ZStack {
-                    Circle().fill(Color.accentColor.opacity(0.20)).frame(width: 44, height: 44)
-                    Circle().fill(Color.accentColor).frame(width: 18, height: 18)
-                    Circle().stroke(Color.primary.opacity(0.30), lineWidth: 1.1).frame(width: 27, height: 27)
+                    Circle().fill(Color.accentColor.opacity(0.20)).frame(width: 36, height: 36)
+                    Circle().fill(Color.accentColor).frame(width: 15, height: 15)
+                    Circle().stroke(Color.primary.opacity(0.30), lineWidth: 1.0).frame(width: 23, height: 23)
                 }
-                .frame(width: 52, height: 52)
+                .frame(width: 42, height: 42)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("显示或隐藏顶部应用控制栏")
             Image(systemName: "chevron.down")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.primary.opacity(0.48))
         }
-        .padding(.vertical, 10)
-        .frame(width: 58, height: 184)
+        .padding(.vertical, 7)
+        .frame(width: 46, height: 140)
         .background(.ultraThinMaterial, in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.primary.opacity(isRepositioningRail ? 0.24 : 0.12), lineWidth: isRepositioningRail ? 1.35 : 0.8))
-        .shadow(color: Color.black.opacity(isRepositioningRail ? 0.17 : 0.10), radius: isRepositioningRail ? 15 : 10, x: 0, y: 4)
-        .scaleEffect(isRepositioningRail ? 1.06 : 1)
-        .animation(.spring(response: 0.24, dampingFraction: 0.72), value: isRepositioningRail)
+        .overlay(Capsule().strokeBorder(Color.primary.opacity(isRepositioningRail ? 0.24 : 0.12), lineWidth: isRepositioningRail ? 1.1 : 0.7))
+        .shadow(color: Color.black.opacity(isRepositioningRail ? 0.15 : 0.08), radius: isRepositioningRail ? 10 : 7, x: 0, y: 3)
+        .scaleEffect(isRepositioningRail ? 1.04 : 1)
+        .animation(.spring(response: 0.28, dampingFraction: 0.78), value: isRepositioningRail)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
         .simultaneousGesture(railGesture)
