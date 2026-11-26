@@ -76,7 +76,7 @@ struct AppSceneViewSwiftUI: UIViewControllerRepresentable {
             MultitaskManager.setContainerForeground(container: dataUUID, isForeground: true)
             vc.updateSettings { settings in
                 guard let settings else { return }
-                let defaultInsets = vc.view.window?.safeAreaInsets ?? .zero
+                let defaultInsets = UIEdgeInsets.zero
                 settings.peripheryInsets = defaultInsets
                 settings.safeAreaInsetsPortrait = defaultInsets
                 settings.deviceOrientation = UIDevice.current.orientation
