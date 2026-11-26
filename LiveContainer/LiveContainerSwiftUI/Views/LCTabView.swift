@@ -23,42 +23,29 @@ struct LCTabView: View {
     let pub = NotificationCenter.default.publisher(for: UIScene.didDisconnectNotification)
     
     var body: some View {
-        TabView(selection: $sharedModel.selectedTab) {
-            LCHomeView()
-                .tabItem {
-                    Label("首页", systemImage: "house.fill")
-                }
-                .tag(LCTabIdentifier.home)
-
-            LCAppListView()
-                .tabItem {
-                    Label("lc.tabView.apps".loc, systemImage: "square.stack.3d.up.fill")
-                }
-                .tag(LCTabIdentifier.apps)
-
-            // Keep the original Sources and Tweaks destinations visible.
-            if DataManager.shared.model.multiLCStatus != 2 {
+        Group {
+            switch sharedModel.selectedTab {
+            case .home:
+                LCHomeView()
+            case .apps:
+                LCAppListView()
+            case .sources:
+                // Keep Sources available to existing deep links, but remove it from the bottom navigation.
                 LCSourcesView()
-                    .tabItem {
-                        Label("lc.tabView.sources".loc, systemImage: "books.vertical")
-                    }
-                    .tag(LCTabIdentifier.sources)
-
+            case .tweaks:
                 LCTweaksView()
-                    .tabItem {
-                        Label("lc.tabView.tweaks".loc, systemImage: "wrench.and.screwdriver")
-                    }
-                    .tag(LCTabIdentifier.tweaks)
+            case .settings:
+                LCSettingsView()
             }
-
-            LCSettingsView()
-                .tabItem {
-                    Label("lc.tabView.settings".loc, systemImage: "gearshape.fill")
-                }
-                .tag(LCTabIdentifier.settings)
         }
-        .tint(Color(red: 0.29, green: 0.43, blue: 0.94))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(uiColor: .systemGroupedBackground))
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            bottomNavigationBar
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 6)
+        }
         .downloadAlert(helper: downloadHelper)
         .environmentObject(downloadHelper)
         .alert("lc.common.error".loc, isPresented: $errorShow){
@@ -124,6 +111,59 @@ struct LCTabView: View {
         }
     }
     
+    private var bottomNavigationBar: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 4) {
+                tabButton(.home, title: "首页", symbol: "house.fill")
+                tabButton(.apps, title: "App", symbol: "square.stack.3d.up.fill")
+                if DataManager.shared.model.multiLCStatus != 2 {
+                    tabButton(.tweaks, title: "模块", symbol: "wrench.and.screwdriver")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Spacer(minLength: 8)
+
+            tabButton(.settings, title: "设置", symbol: "gearshape.fill")
+                .frame(width: 64)
+        }
+        .padding(8)
+        .background(.regularMaterial, in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(Color.primary.opacity(0.08), lineWidth: 0.8)
+        }
+        .shadow(color: Color.black.opacity(0.06), radius: 14, x: 0, y: 5)
+    }
+
+    private func tabButton(_ tab: LCTabIdentifier, title: String, symbol: String) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.84)) {
+                sharedModel.selectedTab = tab
+            }
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: symbol)
+                    .font(.system(size: 21, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 11, weight: .medium))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(sharedModel.selectedTab == tab ? Color.accentColor : Color.primary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 58)
+            .background {
+                if sharedModel.selectedTab == tab {
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.12))
+                }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+    }
+
     func dispatchURL(url: URL) {
         repeat {
             if url.isFileURL {
