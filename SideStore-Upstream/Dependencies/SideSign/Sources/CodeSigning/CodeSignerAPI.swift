@@ -62,6 +62,24 @@ public struct AppBundleSigner: CodeSignerAPI, Sendable {
 
     public func signApp(at appURL: URL, provisioningProfiles profiles: [ProvisioningProfile], progress: Progress? = nil) async throws
     {
+        try await signApp(
+            at: appURL,
+            provisioningProfiles: profiles,
+            applicationEntitlementsByBundleID: [:],
+            progress: progress
+        )
+    }
+
+    /// Signs using the caller's declared entitlements instead of relying only on
+    /// entitlements embedded in the original Mach-O signature. Every entitlement
+    /// is still filtered against the matched provisioning profile below.
+    public func signApp(
+        at appURL: URL,
+        provisioningProfiles profiles: [ProvisioningProfile],
+        applicationEntitlementsByBundleID: [String: [String: any Sendable]],
+        progress: Progress? = nil
+    ) async throws
+    {
         debugLog("[SideSign] AppBundleSigner.signApp called")
         verboseLog("[SideSign] URL: \(appURL.path), Profiles: \(profiles.map { "\($0.name) (\($0.bundleIdentifier))" })")
 
@@ -95,10 +113,23 @@ public struct AppBundleSigner: CodeSignerAPI, Sendable {
             var filteredEntitlements = matchedProfile.entitlements
             verboseLog("[SideSign] Original profile entitlements: \(filteredEntitlements)")
 
-            let applicationEntitlements = app.entitlements
+            let applicationEntitlements =
+                applicationEntitlementsByBundleID[app.bundleIdentifier] ?? app.entitlements
 
             for (key, _) in filteredEntitlements {
                 if let applicationValue = applicationEntitlements[key] {
+                    // A disabled boolean or an empty array means the user did not
+                    // request this capability. Do not re-add it just because the
+                    // provisioning profile happens to contain it.
+                    if let requestedValue = applicationValue as? Bool, !requestedValue {
+                        filteredEntitlements.removeValue(forKey: key)
+                        continue
+                    }
+                    if let requestedValues = applicationValue as? [String], requestedValues.isEmpty {
+                        filteredEntitlements.removeValue(forKey: key)
+                        continue
+                    }
+
                     if key == "keychain-access-groups" {
                         guard let groups = applicationValue as? [String] else {
                             verboseLog("[SideSign] The app's keychain-access-groups entitlement is not an array of strings.")
