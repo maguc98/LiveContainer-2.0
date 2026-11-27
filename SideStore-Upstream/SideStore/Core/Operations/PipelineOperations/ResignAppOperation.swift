@@ -252,9 +252,13 @@ final class ResignAppOperation: BasePipelineOperation<InstallAppOperationContext
                 )
             }
 
+            let targetSpecificEntitlements: [String: any Sendable]? = sourceBundle.isExtension
+                ? nil
+                : context.customEntitlementsByBundleID[context.targetBundleIdentifier]
             var requestedEntitlements =
                 context.customEntitlementsByBundleID[sourceBundle.bundleIdentifier]
                 ?? context.customEntitlementsByBundleID[preparedBundle.bundleIdentifier]
+                ?? targetSpecificEntitlements
                 ?? sourceBundle.entitlements
 
             // These additional entitlements are also used when requesting the
