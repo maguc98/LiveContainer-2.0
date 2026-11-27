@@ -48,6 +48,77 @@ struct LCAppSettingsView: View {
         self._model = ObservedObject(wrappedValue: model)
     }
     
+
+    private var customIconSection: some View {
+Section {
+    HStack(spacing: 14) {
+        Image(uiImage: customIconPreview ?? (appInfo.iconIsDarkIcon(false) ?? UIImage()))
+            .resizable()
+            .scaledToFit()
+            .frame(width: 60, height: 60)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .scaleEffect(iconPreviewPulse ? 1.055 : 1)
+            .rotationEffect(.degrees(iconPreviewPulse ? 2 : 0))
+            .shadow(color: .blue.opacity(iconPreviewPulse ? 0.18 : 0.04), radius: iconPreviewPulse ? 10 : 3, y: 3)
+        VStack(alignment: .leading, spacing: 4) {
+            Text("自定义应用图标")
+                .font(.headline)
+            Text(customIconPreview == nil ? "使用原始图标" : "已设置自定义图标")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        Spacer()
+        Button {
+            showCustomIconPicker = true
+        } label: {
+            Label("选择", systemImage: "photo")
+                .font(.subheadline.weight(.semibold))
+        }
+        .buttonStyle(LCIconPickerButtonStyle())
+    }
+    if customIconPreview != nil {
+        Button(role: .destructive) {
+            let customPath = appInfo.customIconPath()
+            try? FileManager.default.removeItem(atPath: customPath)
+            appInfo.clearIconCache()
+            model.iconOverrideRevision += 1
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.76)) {
+                customIconPreview = nil
+                iconPreviewPulse = false
+            }
+        } label: {
+            Label("恢复原始图标", systemImage: "arrow.uturn.backward")
+        }
+    }
+} header: {
+    Text("应用图标")
+} footer: {
+    Text("仅更改 LiveContainer 内的应用列表图标，不修改原应用包或签名。")
+}
+.sheet(isPresented: $showCustomIconPicker) {
+    LCAppCustomIconPicker { image in
+        guard let image,
+              let data = image.pngData() else { return }
+        let customPath = appInfo.customIconPath()
+        do {
+            try data.write(to: URL(fileURLWithPath: customPath), options: .atomic)
+            appInfo.clearIconCache()
+            model.iconOverrideRevision += 1
+            withAnimation(.spring(response: 0.46, dampingFraction: 0.72)) {
+                customIconPreview = UIImage(contentsOfFile: customPath)
+                iconPreviewPulse = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.42) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { iconPreviewPulse = false }
+            }
+        } catch {
+            errorInfo = error.localizedDescription
+            errorShow = true
+        }
+    }
+}
+    }
+
     var body: some View {
         Form {
             Section {
@@ -111,73 +182,7 @@ struct LCAppSettingsView: View {
                 Text("lc.common.data".loc)
             }
             
-            Section {
-                HStack(spacing: 14) {
-                    Image(uiImage: customIconPreview ?? (appInfo.iconIsDarkIcon(false) ?? UIImage()))
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 60, height: 60)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .scaleEffect(iconPreviewPulse ? 1.055 : 1)
-                        .rotationEffect(.degrees(iconPreviewPulse ? 2 : 0))
-                        .shadow(color: .blue.opacity(iconPreviewPulse ? 0.18 : 0.04), radius: iconPreviewPulse ? 10 : 3, y: 3)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("自定义应用图标")
-                            .font(.headline)
-                        Text(customIconPreview == nil ? "使用原始图标" : "已设置自定义图标")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button {
-                        showCustomIconPicker = true
-                    } label: {
-                        Label("选择", systemImage: "photo")
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    .buttonStyle(LCIconPickerButtonStyle())
-                }
-                if customIconPreview != nil {
-                    Button(role: .destructive) {
-                        let customPath = appInfo.customIconPath()
-                        try? FileManager.default.removeItem(atPath: customPath)
-                        appInfo.clearIconCache()
-                        model.iconOverrideRevision += 1
-                        withAnimation(.spring(response: 0.42, dampingFraction: 0.76)) {
-                            customIconPreview = nil
-                            iconPreviewPulse = false
-                        }
-                    } label: {
-                        Label("恢复原始图标", systemImage: "arrow.uturn.backward")
-                    }
-                }
-            } header: {
-                Text("应用图标")
-            } footer: {
-                Text("仅更改 LiveContainer 内的应用列表图标，不修改原应用包或签名。")
-            }
-            .sheet(isPresented: $showCustomIconPicker) {
-                LCAppCustomIconPicker { image in
-                    guard let image,
-                          let data = image.pngData() else { return }
-                    let customPath = appInfo.customIconPath()
-                    do {
-                        try data.write(to: URL(fileURLWithPath: customPath), options: .atomic)
-                        appInfo.clearIconCache()
-                        model.iconOverrideRevision += 1
-                        withAnimation(.spring(response: 0.46, dampingFraction: 0.72)) {
-                            customIconPreview = UIImage(contentsOfFile: customPath)
-                            iconPreviewPulse = true
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.42) {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { iconPreviewPulse = false }
-                        }
-                    } catch {
-                        errorInfo = error.localizedDescription
-                        errorShow = true
-                    }
-                }
-            }
+            customIconSection
 
             Section {
                 List{
