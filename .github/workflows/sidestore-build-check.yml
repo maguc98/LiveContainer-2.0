@@ -1,0 +1,45 @@
+name: SideStore build check
+
+on:
+  pull_request:
+    paths:
+      - "SideStore-Upstream/**"
+      - ".github/workflows/sidestore-build-check.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "SideStore-Upstream/**"
+      - ".github/workflows/sidestore-build-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Resolve Swift package dependencies
+        run: |
+          xcodebuild \
+            -project SideStore-Upstream/AltStore.xcodeproj \
+            -scheme SideStore \
+            -resolvePackageDependencies
+
+      - name: Build SideStore for iOS Simulator
+        run: |
+          xcodebuild \
+            -project SideStore-Upstream/AltStore.xcodeproj \
+            -scheme SideStore \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
