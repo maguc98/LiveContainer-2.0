@@ -2,6 +2,11 @@ name: Build LiveContainer + SideStore combined IPA
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "LiveContainer/**"
+      - "SideStore-Upstream/**"
+      - ".github/workflows/combined-ipa.yml"
   push:
     branches:
       - "fix/sidestore-app-group-entitlements"
@@ -22,6 +27,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Initialize LiveContainer submodules
+        run: git -C LiveContainer submodule update --init --recursive
 
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
