@@ -139,7 +139,7 @@ struct LCAppSettingsView: View {
                 }
                 if customIconPreview != nil {
                     Button(role: .destructive) {
-                        let customPath = appInfo.bundlePath().appending("/LCUserCustomIcon.png")
+                        let customPath = appInfo.customIconPath()
                         try? FileManager.default.removeItem(atPath: customPath)
                         appInfo.clearIconCache()
                         model.iconOverrideRevision += 1
@@ -160,7 +160,7 @@ struct LCAppSettingsView: View {
                 LCAppCustomIconPicker { image in
                     guard let image,
                           let data = image.pngData() else { return }
-                    let customPath = appInfo.bundlePath().appending("/LCUserCustomIcon.png")
+                    let customPath = appInfo.customIconPath()
                     do {
                         try data.write(to: URL(fileURLWithPath: customPath), options: .atomic)
                         appInfo.clearIconCache()
