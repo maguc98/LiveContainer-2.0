@@ -1,0 +1,90 @@
+name: Build LiveContainer + SideStore combined IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "fix/sidestore-app-group-entitlements"
+    paths:
+      - "LiveContainer/**"
+      - "SideStore-Upstream/**"
+      - ".github/workflows/combined-ipa.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-combined:
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout repository and submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.2"
+
+      - name: Build patched SideStore for iOS device
+        run: |
+          xcodebuild \
+            -project SideStore-Upstream/AltStore.xcodeproj \
+            -scheme SideStore \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/SideStoreDerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_IDENTITY='' \
+            build
+          APP_PATH="build/SideStoreDerivedData/Build/Products/Release-iphoneos/SideStore.app"
+          test -d "$APP_PATH"
+          mkdir -p build/SideStoreIPA/Payload
+          cp -R "$APP_PATH" build/SideStoreIPA/Payload/
+          cd build/SideStoreIPA
+          zip -qr ../SideStore.ipa Payload
+
+      - name: Prepare LiveContainer dependencies
+        working-directory: LiveContainer
+        run: sh .github/prepare_dependencies.sh
+
+      - name: Archive LiveContainer host
+        working-directory: LiveContainer
+        run: |
+          xcodebuild archive \
+            -archivePath combined_archive \
+            -project LiveContainer.xcodeproj \
+            -scheme LiveContainer \
+            -sdk iphoneos \
+            -arch arm64 \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_IDENTITY='' \
+            archive
+
+      - name: Assemble LiveContainer + SideStore IPA
+        working-directory: LiveContainer
+        env:
+          SIDESTORE_IPA: ../build/SideStore.ipa
+          scheme: LiveContainer
+          archive_path: combined_archive
+        run: sh .github/build_combined_github.sh
+
+      - name: Verify combined IPA structure
+        run: |
+          test -s LiveContainer/LiveContainer+SideStore.ipa
+          unzip -l LiveContainer/LiveContainer+SideStore.ipa | grep -q 'Payload/LiveContainer.app/Frameworks/SideStoreApp.framework/SideStore'
+          unzip -l LiveContainer/LiveContainer+SideStore.ipa | grep -q 'Payload/LiveContainer.app/Frameworks/SideStoreSupport.framework'
+          unzip -l LiveContainer/LiveContainer+SideStore.ipa | grep -q 'Payload/LiveContainer.app/PlugIns/LiveWidgetExtension.appex'
+
+      - name: Upload combined IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiveContainer+SideStore-Combined-IPA
+          path: LiveContainer/LiveContainer+SideStore.ipa
+          if-no-files-found: error
+          retention-days: 14
