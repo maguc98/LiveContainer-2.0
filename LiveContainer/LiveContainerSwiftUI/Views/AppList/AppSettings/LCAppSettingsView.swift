@@ -78,8 +78,9 @@ Section {
     }
     if customIconPreview != nil {
         Button(role: .destructive) {
-            let customPath = appInfo.customIconPath()
-            try? FileManager.default.removeItem(atPath: customPath)
+            if let customPath = appInfo.customIconPath() {
+                try? FileManager.default.removeItem(atPath: customPath)
+            }
             appInfo.clearIconCache()
             model.iconOverrideRevision += 1
             withAnimation(.spring(response: 0.42, dampingFraction: 0.76)) {
@@ -99,7 +100,7 @@ Section {
     LCAppCustomIconPicker { image in
         guard let image,
               let data = image.pngData() else { return }
-        let customPath = appInfo.customIconPath()
+        guard let customPath = appInfo.customIconPath() else { return }
         do {
             try data.write(to: URL(fileURLWithPath: customPath), options: .atomic)
             appInfo.clearIconCache()
