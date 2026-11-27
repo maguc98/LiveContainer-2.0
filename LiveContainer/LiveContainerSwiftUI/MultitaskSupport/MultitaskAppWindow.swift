@@ -51,14 +51,17 @@ struct AppSceneViewSwiftUI: UIViewControllerRepresentable {
     let onAppInitialize: (Int32, Error?) -> Void
     
     class Coordinator: NSObject, AppSceneViewControllerDelegate {
+        let dataUUID: String
         let onExit: () -> Void
         let onAppInitialize: (Int32, Error?) -> Void
-        init(onAppInitialize: @escaping (Int32, Error?) -> Void, onExit: @escaping () -> Void) {
+        init(dataUUID: String, onAppInitialize: @escaping (Int32, Error?) -> Void, onExit: @escaping () -> Void) {
+            self.dataUUID = dataUUID
             self.onAppInitialize = onAppInitialize
             self.onExit = onExit
         }
         
         func appSceneVCAppDidExit(_: AppSceneViewController!) {
+            MultitaskManager.setContainerForeground(container: dataUUID, isForeground: false)
             onExit()
         }
         
@@ -70,9 +73,10 @@ struct AppSceneViewSwiftUI: UIViewControllerRepresentable {
         }
         
         func appSceneVCWillActivateScene(_ vc: AppSceneViewController!) {
+            MultitaskManager.setContainerForeground(container: dataUUID, isForeground: true)
             vc.updateSettings { settings in
                 guard let settings else { return }
-                let defaultInsets = vc.view.window?.safeAreaInsets ?? .zero
+                let defaultInsets = UIEdgeInsets.zero
                 settings.peripheryInsets = defaultInsets
                 settings.safeAreaInsetsPortrait = defaultInsets
                 settings.deviceOrientation = UIDevice.current.orientation
@@ -88,6 +92,7 @@ struct AppSceneViewSwiftUI: UIViewControllerRepresentable {
         }
         
         func appSceneVC(_ vc: AppSceneViewController!, didUpdateFrom settings: UIMutableApplicationSceneSettings!, transitionContext context: Any!, lifecycleActionType actionType: UInt32) {
+            MultitaskManager.setContainerForeground(container: dataUUID, isForeground: settings.isForeground())
             settings.interruptionPolicy = 0
             //settings.peripheryInsets = vc.view.window?.safeAreaInsets ?? .zero
             vc.presenter.scene.updateSettings(settings, withTransitionContext: context, completion: nil)
@@ -100,7 +105,7 @@ struct AppSceneViewSwiftUI: UIViewControllerRepresentable {
     }
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(onAppInitialize: onAppInitialize, onExit: {
+        Coordinator(dataUUID: dataUUID, onAppInitialize: onAppInitialize, onExit: {
             show = false
         })
     }

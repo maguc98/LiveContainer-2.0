@@ -34,6 +34,9 @@ struct LCAppSettingsView: View {
     @StateObject private var addExternalNonLocalContainerWarningAlert = YesNoHelper()
     @State var choosingStorage = false
     
+    @State private var showCustomIconPicker = false
+    @State private var customIconPreview: UIImage? = nil
+    @State private var iconPreviewPulse = false
     @State private var errorShow = false
     @State private var errorInfo = ""
     @State private var selectUnusedContainerSheetShow = false
@@ -45,6 +48,78 @@ struct LCAppSettingsView: View {
         self._model = ObservedObject(wrappedValue: model)
     }
     
+
+    private var customIconSection: some View {
+Section {
+    HStack(spacing: 14) {
+        Image(uiImage: customIconPreview ?? (appInfo.iconIsDarkIcon(false) ?? UIImage()))
+            .resizable()
+            .scaledToFit()
+            .frame(width: 60, height: 60)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .scaleEffect(iconPreviewPulse ? 1.055 : 1)
+            .rotationEffect(.degrees(iconPreviewPulse ? 2 : 0))
+            .shadow(color: .blue.opacity(iconPreviewPulse ? 0.18 : 0.04), radius: iconPreviewPulse ? 10 : 3, y: 3)
+        VStack(alignment: .leading, spacing: 4) {
+            Text("自定义应用图标")
+                .font(.headline)
+            Text(customIconPreview == nil ? "使用原始图标" : "已设置自定义图标")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        Spacer()
+        Button {
+            showCustomIconPicker = true
+        } label: {
+            Label("选择", systemImage: "photo")
+                .font(.subheadline.weight(.semibold))
+        }
+        .buttonStyle(LCIconPickerButtonStyle())
+    }
+    if customIconPreview != nil {
+        Button(role: .destructive) {
+            if let customPath = appInfo.customIconPath() {
+                try? FileManager.default.removeItem(atPath: customPath)
+            }
+            appInfo.clearIconCache()
+            model.iconOverrideRevision += 1
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.76)) {
+                customIconPreview = nil
+                iconPreviewPulse = false
+            }
+        } label: {
+            Label("恢复原始图标", systemImage: "arrow.uturn.backward")
+        }
+    }
+} header: {
+    Text("应用图标")
+} footer: {
+    Text("仅更改 LiveContainer 内的应用列表图标，不修改原应用包或签名。")
+}
+.sheet(isPresented: $showCustomIconPicker) {
+    LCAppCustomIconPicker { image in
+        guard let image,
+              let data = image.pngData() else { return }
+        guard let customPath = appInfo.customIconPath() else { return }
+        do {
+            try data.write(to: URL(fileURLWithPath: customPath), options: .atomic)
+            appInfo.clearIconCache()
+            model.iconOverrideRevision += 1
+            withAnimation(.spring(response: 0.46, dampingFraction: 0.72)) {
+                customIconPreview = UIImage(contentsOfFile: customPath)
+                iconPreviewPulse = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.42) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { iconPreviewPulse = false }
+            }
+        } catch {
+            errorInfo = error.localizedDescription
+            errorShow = true
+        }
+    }
+}
+    }
+
     var body: some View {
         Form {
             Section {
@@ -108,6 +183,8 @@ struct LCAppSettingsView: View {
                 Text("lc.common.data".loc)
             }
             
+            customIconSection
+
             Section {
                 List{
                     ForEach(model.uiContainers.indices, id:\.self) { i in
@@ -441,10 +518,8 @@ struct LCAppSettingsView: View {
             Text("lc.appSettings.toSharedAppDesc".loc)
         }
         .alert("lc.appSettings.toPrivateApp".loc, isPresented: $moveToPrivateDocAlert.show) {
-            Button {
+            Button("lc.common.move".loc) {
                 self.moveToPrivateDocAlert.close(result: true)
-            } label: {
-                Text("lc.common.move".loc)
             }
             Button("lc.common.cancel".loc, role: .cancel) {
                 self.moveToPrivateDocAlert.close(result: false)
@@ -894,5 +969,53 @@ extension LCAppSettingsView : LCSelectContainerViewDelegate {
         }
         appInfo.containers = model.uiContainers;
 
+    }
+}
+
+
+private struct LCAppCustomIconPicker: UIViewControllerRepresentable {
+    let onPick: (UIImage?) -> Void
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .photoLibrary
+        picker.delegate = context.coordinator
+        picker.allowsEditing = true
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onPick: onPick)
+    }
+
+    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let onPick: (UIImage?) -> Void
+        init(onPick: @escaping (UIImage?) -> Void) { self.onPick = onPick }
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            let image = (info[.editedImage] as? UIImage) ?? (info[.originalImage] as? UIImage)
+            onPick(image)
+            picker.dismiss(animated: true)
+        }
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            onPick(nil)
+            picker.dismiss(animated: true)
+        }
+    }
+}
+
+private struct LCIconPickerButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(.horizontal, 13)
+            .padding(.vertical, 9)
+            .background {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.accentColor.opacity(configuration.isPressed ? 0.72 : 1))
+            }
+            .foregroundColor(.white)
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+            .animation(.spring(response: 0.26, dampingFraction: 0.62), value: configuration.isPressed)
     }
 }

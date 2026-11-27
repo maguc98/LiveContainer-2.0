@@ -32,6 +32,20 @@ enum JITEnablerType : Int, CaseIterable, Identifiable {
     }
 }
 
+
+private struct LCSettingsScrollBackgroundModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.0, *) {
+            content
+                .scrollContentBackground(.hidden)
+                .scrollIndicators(.hidden)
+                .scrollDismissesKeyboard(.interactively)
+        } else {
+            content
+        }
+    }
+}
+
 struct LCSettingsView: View {
     @State var errorShow = false
     @State var errorInfo = ""
@@ -71,6 +85,7 @@ struct LCSettingsView: View {
     @EnvironmentObject private var sharedModel : SharedModel
     
     @State private var isViewAppeared = false
+    @State private var settingsContentAppeared = false
     
     let storeName = LCUtils.getStoreName()
     
@@ -166,6 +181,8 @@ struct LCSettingsView: View {
                             Spacer()
                             TextField(JITEnabler == .SideJITServer ? "http://x.x.x.x:8080" : "http://[fd00::]:9172", text: $sideJITServerAddress)
                                 .multilineTextAlignment(.trailing)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
                         }
                     }
                     if JITEnabler == .SideJITServer {
@@ -174,6 +191,8 @@ struct LCSettingsView: View {
                             Spacer()
                             TextField("", text: $deviceUDID)
                                 .multilineTextAlignment(.trailing)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
                         }
                     }
                     Picker(selection: $JITEnabler) {
@@ -192,9 +211,10 @@ struct LCSettingsView: View {
                 
                 Section {
                     Picker(selection: $selected32BitEmulator) {
+                        Text("lc.common.none".loc).tag("")
                         ForEach(sharedModel.arm32EmuApps, id: \.self) { app in
-                            Text("lc.common.none".loc).tag("")
-                            Text(app.appInfo.displayName()).tag(app.appInfo.relativeBundlePath!)
+                            Text(app.appInfo.displayName())
+                                .tag(app.appInfo.relativeBundlePath ?? "")
                         }
                     } label: {
                         Text("lc.settings.selected32BitEmulator".loc)
@@ -377,7 +397,29 @@ struct LCSettingsView: View {
                     }
                 }
             }
+            .modifier(LCSettingsScrollBackgroundModifier())
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Color.clear.frame(height: 52)
+            }
+            .listStyle(.insetGrouped)
+            .environment(\.defaultMinListRowHeight, 48)
+            .animation(.spring(response: 0.32, dampingFraction: 0.86), value: certificateDataFound)
+            .animation(.spring(response: 0.32, dampingFraction: 0.86), value: JITEnabler)
+            .animation(.spring(response: 0.32, dampingFraction: 0.86), value: sharedModel.developerMode)
+            .background {
+                ZStack(alignment: .top) {
+                    Color(uiColor: .systemGroupedBackground)
+                    LinearGradient(
+                        colors: [Color.blue.opacity(0.075), Color.purple.opacity(0.04), Color.clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .frame(height: 360)
+                }
+                .ignoresSafeArea()
+            }
             .navigationBarTitle("lc.tabView.settings".loc)
+            .navigationBarTitleDisplayMode(.inline)
             .alert("lc.common.error".loc, isPresented: $errorShow){
             } message: {
                 Text(errorInfo)
