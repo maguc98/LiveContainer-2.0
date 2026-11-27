@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   sync:
+    if: github.ref == 'refs/heads/main'
     runs-on: macos-15
     steps:
       - name: Checkout customization repository
@@ -37,6 +38,12 @@ jobs:
           mkdir -p LiveContainer SideStore-Upstream
           rsync -a --delete --exclude='.git/' /tmp/LiveContainer/ LiveContainer/
           rsync -a --delete --exclude='.git/' /tmp/SideStore/ SideStore-Upstream/
+
+      - name: Apply maintained SideStore signing fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/patches/apply-sidestore-entitlements.py
 
       - name: Commit imported sources
         shell: bash
