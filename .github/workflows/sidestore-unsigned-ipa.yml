@@ -8,6 +8,7 @@ on:
     paths:
       - "SideStore-Upstream/**"
       - ".github/workflows/sidestore-unsigned-ipa.yml"
+      - ".github/workflows/sidestore-build-check.yml"
 
 permissions:
   contents: read
