@@ -512,10 +512,8 @@ struct LCAppSettingsView: View {
             Text("lc.appSettings.toSharedAppDesc".loc)
         }
         .alert("lc.appSettings.toPrivateApp".loc, isPresented: $moveToPrivateDocAlert.show) {
-            Button {
+            Button("lc.common.move".loc) {
                 self.moveToPrivateDocAlert.close(result: true)
-            } label: {
-                Text("lc.common.move".loc)
             }
             Button("lc.common.cancel".loc, role: .cancel) {
                 self.moveToPrivateDocAlert.close(result: false)
