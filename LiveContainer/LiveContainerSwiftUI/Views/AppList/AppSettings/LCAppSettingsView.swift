@@ -586,7 +586,10 @@ struct LCAppSettingsView: View {
         for container in model.uiContainers {
             keychainGroupSet.remove(container.keychainGroupId)
         }
-        guard let freeKeyChainGroup = keychainGroupSet.randomElement() else {
+        // Select an available keychain group explicitly to avoid a Swift compiler
+        // type-checking timeout on randomElement() in this context.
+        let availableKeychainGroups = Array(keychainGroupSet)
+        guard let freeKeyChainGroup = availableKeychainGroups.first else {
             errorInfo = "lc.container.notEnoughKeychainGroup".loc
             errorShow = true
             return
