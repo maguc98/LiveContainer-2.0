@@ -13,14 +13,41 @@
 @property(nonatomic) NSString* dataUUID;
 @property(nonatomic) int pid;
 @property(nonatomic) CGRect originalFrame;
-@property(nonatomic) UIBarButtonItem *maximizeButton;
+@property(nonatomic) UIButton *maximizeButton;
 @property(nonatomic) bool isAppTerminationRequested;
+@property(nonatomic, copy) dispatch_block_t toolbarReturnBlock;
+@property(nonatomic) BOOL toolbarIsManuallyPositioned;
+@property(nonatomic) BOOL toolbarIsHiddenByUser;
 @end
+
+static UIButton *LCCreateMultitaskTrafficLightButton(NSString *symbolName, UIColor *backgroundColor) {
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
+    UIImageSymbolConfiguration *configuration =
+        [UIImageSymbolConfiguration configurationWithPointSize:10.0 weight:UIImageSymbolWeightBold];
+    UIImage *image = [[UIImage systemImageNamed:symbolName] imageWithConfiguration:configuration];
+
+    [button setImage:image forState:UIControlStateNormal];
+    button.tintColor = UIColor.whiteColor;
+    button.backgroundColor = backgroundColor;
+    button.layer.cornerRadius = 12.0;
+    button.layer.borderWidth = 0.8;
+    button.layer.borderColor = [UIColor colorWithWhite:1.0 alpha:0.62].CGColor;
+    button.layer.shadowColor = [UIColor colorWithWhite:0.12 alpha:1.0].CGColor;
+    button.layer.shadowOpacity = 0.10;
+    button.layer.shadowRadius = 2.0;
+    button.layer.shadowOffset = CGSizeMake(0, 1);
+    button.translatesAutoresizingMaskIntoConstraints = NO;
+    [NSLayoutConstraint activateConstraints:@[
+        [button.widthAnchor constraintEqualToConstant:24.0],
+        [button.heightAnchor constraintEqualToConstant:24.0]
+    ]];
+    return button;
+}
 
 @implementation DecoratedAppSceneViewController
 - (instancetype)initWindowName:(NSString*)windowName bundleId:(NSString*)bundleId dataUUID:(NSString*)dataUUID rootVC:(UIViewController*)rootVC {
     self = [super initWithNibName:nil bundle:nil];
-    self.view = [[UIStackView alloc] initWithFrame:self.view.frame];
+    self.view = [[UIView alloc] initWithFrame:self.view.frame];
     [MultitaskDockManager.shared.windowHostingView addSubview:self.view];
     [rootVC addChildViewController:self];
     
@@ -48,48 +75,118 @@
             return [self scaleSliderViewWithTitle:@"lc.multitask.scale".loc min:0.5 max:2.0 value:self.scaleRatio stepInterval:0.01];
         }]
     ];
-    
 
     __weak typeof(self) weakSelf = self;
-    [self.navigationItem setTitleMenuProvider:^UIMenu *(NSArray<UIMenuElement *> *suggestedActions){
-        if(!weakSelf.appSceneVC.isAppRunning) {
-            return [UIMenu menuWithTitle:NSLocalizedString(@"lc.multitaskAppWindow.appTerminated", nil) children:@[]];
-        } else {
-            NSString *pidText = [NSString stringWithFormat:@"PID: %d", weakSelf.pid];
-            return [UIMenu menuWithTitle:pidText children:menuItems];
-        }
-    }];
-    
-    UIImage *minimizeImage = [UIImage systemImageNamed:@"minus.circle"];
-    UIImageConfiguration *minimizeConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightMedium];
-    minimizeImage = [minimizeImage imageWithConfiguration:minimizeConfig];
-    UIBarButtonItem *minimizeButton = [[UIBarButtonItem alloc] initWithImage:minimizeImage style:UIBarButtonItemStylePlain target:self action:@selector(minimizeWindow)];
-    minimizeButton.tintColor = [UIColor systemYellowColor];
-    
-    NSString *maximizeImageName = _isMaximized ? @"arrow.down.right.and.arrow.up.left.circle" : @"arrow.up.left.and.arrow.down.right.circle";
-    UIImage *maximizeImage = [UIImage systemImageNamed:maximizeImageName];
-    UIImageConfiguration *maximizeConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightMedium];
-    maximizeImage = [maximizeImage imageWithConfiguration:maximizeConfig];
-    self.maximizeButton = [[UIBarButtonItem alloc] initWithImage:maximizeImage style:UIBarButtonItemStylePlain target:self action:@selector(maximizeWindow)];
-    self.maximizeButton.tintColor = [UIColor systemGreenColor];
-    
-    UIImage *closeImage = [UIImage systemImageNamed:@"xmark.circle"];
-    UIImageConfiguration *closeConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightMedium];
-    closeImage = [closeImage imageWithConfiguration:closeConfig];
-    UIBarButtonItem *closeButton = [[UIBarButtonItem alloc] initWithImage:closeImage style:UIBarButtonItemStylePlain target:self action:@selector(closeWindow)];
-    closeButton.tintColor = [UIColor systemRedColor];
-    
-    NSArray *barButtonItems = @[closeButton, self.maximizeButton, minimizeButton];
-    if([NSUserDefaults.lcSharedDefaults boolForKey:@"LCMultitaskBottomWindowBar"]) {
-        // resize handle overlaps the close button, so put the buttons on the left
-        self.navigationItem.leftBarButtonItems = barButtonItems;
-    } else {
-        self.navigationItem.rightBarButtonItems = barButtonItems;
-    }
 
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [self adjustNavigationBarButtonSpacingWithNegativeSpacing:-8.0 rightMargin:-4.0];
-    });
+    UIButton *closeButton = LCCreateMultitaskTrafficLightButton(
+        @"xmark",
+        [UIColor colorWithRed:0.94 green:0.34 blue:0.33 alpha:1.0]
+    );
+    [closeButton addTarget:self action:@selector(closeWindow) forControlEvents:UIControlEventTouchUpInside];
+
+    NSString *maximizeImageName = _isMaximized
+        ? @"arrow.down.right.and.arrow.up.left"
+        : @"arrow.up.left.and.arrow.down.right";
+    self.maximizeButton = LCCreateMultitaskTrafficLightButton(
+        maximizeImageName,
+        [UIColor colorWithRed:0.28 green:0.70 blue:0.46 alpha:1.0]
+    );
+    [self.maximizeButton addTarget:self action:@selector(maximizeWindow) forControlEvents:UIControlEventTouchUpInside];
+
+    UIButton *minimizeButton = LCCreateMultitaskTrafficLightButton(
+        @"minus",
+        [UIColor colorWithRed:0.98 green:0.72 blue:0.27 alpha:1.0]
+    );
+    [minimizeButton addTarget:self action:@selector(minimizeWindow) forControlEvents:UIControlEventTouchUpInside];
+
+    UIButton *appMenuButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    [appMenuButton setTitle:windowName forState:UIControlStateNormal];
+    [appMenuButton setImage:[UIImage systemImageNamed:@"chevron.down"] forState:UIControlStateNormal];
+    appMenuButton.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
+    appMenuButton.titleLabel.font = [UIFont systemFontOfSize:13.0 weight:UIFontWeightSemibold];
+    appMenuButton.titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+    appMenuButton.titleLabel.adjustsFontSizeToFitWidth = YES;
+    appMenuButton.titleLabel.minimumScaleFactor = 0.85;
+    appMenuButton.tintColor = [UIColor colorWithRed:0.25 green:0.32 blue:0.42 alpha:1.0];
+    appMenuButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentCenter;
+    appMenuButton.contentEdgeInsets = UIEdgeInsetsMake(0, 2, 0, 2);
+    appMenuButton.titleEdgeInsets = UIEdgeInsetsMake(0, 0, 0, 4);
+    appMenuButton.imageEdgeInsets = UIEdgeInsetsMake(0, -3, 0, 0);
+    appMenuButton.showsMenuAsPrimaryAction = YES;
+    appMenuButton.accessibilityLabel = windowName;
+    appMenuButton.menu = [UIMenu menuWithTitle:@"" children:@[
+        [UIDeferredMenuElement elementWithProvider:^(void (^completion)(NSArray<UIMenuElement *> *elements)) {
+            if (!weakSelf) {
+                completion(@[]);
+                return;
+            }
+            if (!weakSelf.appSceneVC.isAppRunning) {
+                UIAction *terminated = [UIAction actionWithTitle:NSLocalizedString(@"lc.multitaskAppWindow.appTerminated", nil)
+                                                            image:nil
+                                                       identifier:nil
+                                                          handler:^(__kindof UIAction * _Nonnull action) {}];
+                terminated.attributes = UIMenuElementAttributesDisabled;
+                completion(@[terminated]);
+                return;
+            }
+            UIAction *pidInfo = [UIAction actionWithTitle:[NSString stringWithFormat:@"PID: %d", weakSelf.pid]
+                                                     image:nil
+                                                identifier:nil
+                                                   handler:^(__kindof UIAction * _Nonnull action) {}];
+            pidInfo.attributes = UIMenuElementAttributesDisabled;
+            completion([@[pidInfo] arrayByAddingObjectsFromArray:menuItems]);
+        }]
+    ]];
+
+    UIView *pillContainer = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 244, 36)];
+    pillContainer.layer.cornerRadius = 18.0;
+    pillContainer.layer.shadowColor = [UIColor colorWithRed:0.30 green:0.40 blue:0.55 alpha:1.0].CGColor;
+    pillContainer.layer.shadowOpacity = 0.13;
+    pillContainer.layer.shadowRadius = 10.0;
+    pillContainer.layer.shadowOffset = CGSizeMake(0, 4);
+    pillContainer.backgroundColor = UIColor.clearColor;
+
+    UIVisualEffectView *pillGlass = [[UIVisualEffectView alloc] initWithEffect:
+        [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterialLight]];
+    pillGlass.frame = pillContainer.bounds;
+    pillGlass.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    pillGlass.layer.cornerRadius = 18.0;
+    pillGlass.layer.masksToBounds = YES;
+    pillGlass.layer.borderWidth = 1.0;
+    pillGlass.layer.borderColor = [UIColor colorWithWhite:1.0 alpha:0.82].CGColor;
+    pillGlass.contentView.backgroundColor = [UIColor colorWithRed:0.91 green:0.95 blue:0.99 alpha:0.20];
+    [pillContainer addSubview:pillGlass];
+
+    UIView *separator = [[UIView alloc] initWithFrame:CGRectZero];
+    separator.backgroundColor = [UIColor colorWithRed:0.61 green:0.68 blue:0.78 alpha:0.35];
+    separator.translatesAutoresizingMaskIntoConstraints = NO;
+    [NSLayoutConstraint activateConstraints:@[
+        [separator.widthAnchor constraintEqualToConstant:1.0],
+        [separator.heightAnchor constraintEqualToConstant:18.0]
+    ]];
+
+    UIStackView *controlStack = [[UIStackView alloc] initWithArrangedSubviews:@[
+        closeButton, minimizeButton, self.maximizeButton, separator, appMenuButton
+    ]];
+    controlStack.axis = UILayoutConstraintAxisHorizontal;
+    controlStack.alignment = UIStackViewAlignmentCenter;
+    controlStack.distribution = UIStackViewDistributionFill;
+    controlStack.spacing = 5.0;
+    controlStack.translatesAutoresizingMaskIntoConstraints = NO;
+    [pillGlass.contentView addSubview:controlStack];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [controlStack.leadingAnchor constraintEqualToAnchor:pillGlass.contentView.leadingAnchor constant:7.0],
+        [controlStack.trailingAnchor constraintEqualToAnchor:pillGlass.contentView.trailingAnchor constant:-7.0],
+        [controlStack.centerYAnchor constraintEqualToAnchor:pillGlass.contentView.centerYAnchor],
+        [appMenuButton.widthAnchor constraintLessThanOrEqualToConstant:112.0]
+    ]];
+    [appMenuButton setContentHuggingPriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
+    [appMenuButton setContentCompressionResistancePriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
+
+    self.navigationItem.titleView = pillContainer;
+    self.navigationItem.leftBarButtonItems = nil;
+    self.navigationItem.rightBarButtonItems = nil;
 
     return self;
 }
@@ -97,12 +194,13 @@
 - (void)setupDecoratedView {
     CGFloat navBarHeight = 44;
     BOOL isLandscape = UIInterfaceOrientationIsLandscape(UIApp.statusBarOrientation);
-    CGRect frame = CGRectMake(0, 0, isLandscape ? 480 : 320, (isLandscape ? 320 : 480) + navBarHeight);
+    // The floating toolbar overlays the app and no longer contributes to the window's content height.
+    CGRect frame = CGRectMake(0, 0, isLandscape ? 480 : 320, isLandscape ? 320 : 480);
     CGPoint rootViewCenter = self.view.superview.center;
     frame.origin = CGPointMake(rootViewCenter.x - frame.size.width / 2, rootViewCenter.y - frame.size.height / 2);
     
     if(_isMaximized) {
-        CGRect maxFrame = UIEdgeInsetsInsetRect(self.view.window.frame, self.view.window.safeAreaInsets);
+        CGRect maxFrame = self.view.window.bounds;
         // save origin as normalized coordinates
         frame.origin.x /= maxFrame.size.width;
         frame.origin.y /= maxFrame.size.height;
@@ -111,38 +209,31 @@
         self.view.frame = frame;
     }
     
-    // Navigation bar
+    // Navigation bar: keep the bar itself transparent so the centered glass island floats above the app.
     UINavigationBar *navigationBar = [[UINavigationBar alloc] initWithFrame:CGRectMake(0, 0, self.view.frame.size.width, navBarHeight)];
     navigationBar.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+    navigationBar.translucent = YES;
+    navigationBar.backgroundColor = UIColor.clearColor;
+    [navigationBar setBackgroundImage:[UIImage new] forBarMetrics:UIBarMetricsDefault];
+    navigationBar.shadowImage = [UIImage new];
     UINavigationItem *navigationItem = [[UINavigationItem alloc] initWithTitle:self.title];
     navigationBar.items = @[navigationItem];
     
-    self.view.axis = UILayoutConstraintAxisVertical;
     self.view.backgroundColor = UIColor.systemBackgroundColor;
     self.view.layer.cornerRadius = 10;
     self.view.layer.masksToBounds = YES;
 
     self.navigationBar = navigationBar;
     self.navigationItem = navigationBar.items.firstObject;
+    UIBarButtonItem *hideToolbarButton = [[UIBarButtonItem alloc] initWithImage:[UIImage systemImageNamed:@"eye.slash"] style:UIBarButtonItemStylePlain target:self action:@selector(hideFloatingToolbar)];
+    hideToolbarButton.tintColor = UIColor.secondaryLabelColor;
+    self.navigationItem.leftBarButtonItem = hideToolbarButton;
     if (!self.navigationBar.superview) {
-        [self.view addArrangedSubview:self.navigationBar];
+        // Keep the navigation bar out of the vertical stack so it floats above app content.
+        [self.view addSubview:self.navigationBar];
     }
     
-    CGRect contentFrame = CGRectMake(0, 0, self.view.frame.size.width, self.view.frame.size.height - navBarHeight);
-    UIView *fixedPositionContentView = [[UIView alloc] initWithFrame:contentFrame];
-    self.contentView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    if([NSUserDefaults.lcSharedDefaults boolForKey:@"LCMultitaskBottomWindowBar"]) {
-        [self.view insertArrangedSubview:fixedPositionContentView atIndex:0];
-    } else {
-        [self.view addArrangedSubview:fixedPositionContentView];
-    }
-    [self.view sendSubviewToBack:fixedPositionContentView];
-    
-    self.contentView = [[UIView alloc] initWithFrame:contentFrame];
-    self.contentView.layer.anchorPoint = self.contentView.layer.position = CGPointMake(0, 0);
-    self.contentView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    [fixedPositionContentView addSubview:self.contentView];
-    
+
     UIPanGestureRecognizer *moveGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(moveWindow:)];
     moveGesture.minimumNumberOfTouches = 1;
     moveGesture.maximumNumberOfTouches = 1;
@@ -164,17 +255,24 @@
     [self.view insertSubview:_appSceneVC.view atIndex:0];
     _appSceneVC.view.translatesAutoresizingMaskIntoConstraints = NO;
     
-    [self updateVerticalConstraints];
+    // The app scene always occupies the entire window. The toolbar is a separate overlay.
     [NSLayoutConstraint activateConstraints:@[
         [_appSceneVC.view.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-        [_appSceneVC.view.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor]
+        [_appSceneVC.view.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+        [_appSceneVC.view.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+        [_appSceneVC.view.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
     ]];
+    [self updateVerticalConstraints];
     
     
     NSUserDefaults *defaults = NSUserDefaults.lcSharedDefaults;
 
     [defaults addObserver:self forKeyPath:@"LCMultitaskBottomWindowBar" options:NSKeyValueObservingOptionNew context:NULL];
     [self updateOriginalFrame];
+
+    // Prepare a subtle scale/fade entrance; animate only after the app scene is ready.
+    self.view.alpha = 0.0;
+    self.view.transform = CGAffineTransformMakeScale(0.94, 0.94);
 }
 
 
@@ -250,17 +348,28 @@
 
 - (void)minimizeWindow {
     if (self.view.hidden) return;
-    [UIView animateWithDuration:0.3 delay:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
-        self.view.alpha = 0;
-        self.view.transform = CGAffineTransformMakeScale(0.1, 0.1);
+
+    // Animate toward the multitask rail instead of collapsing to an almost invisible point.
+    CGFloat railOffset = MAX(36.0, MIN(76.0, self.view.superview.bounds.size.width * 0.12));
+    [UIView animateWithDuration:0.34
+                          delay:0
+         usingSpringWithDamping:0.88
+          initialSpringVelocity:0.15
+                        options:UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionCurveEaseInOut
+                     animations:^{
+        self.view.alpha = 0.08;
+        self.view.transform = CGAffineTransformConcat(
+            CGAffineTransformMakeScale(0.86, 0.86),
+            CGAffineTransformMakeTranslation(railOffset, 0)
+        );
     } completion:^(BOOL finished) {
         if (!finished) return;
         self.view.hidden = YES;
+        self.view.alpha = 1.0;
         self.view.transform = CGAffineTransformIdentity;
         [self.view.superview sendSubviewToBack:self.view];
     }];
 }
-
 - (void)minimizeWindowPiP {
     [UIView animateWithDuration:0.3 delay:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
         self.view.alpha = 0;
@@ -296,9 +405,9 @@
             [self.view layoutIfNeeded];
         } completion:^(BOOL finished) {
             self.isMaximized = NO;
-            UIImage *maximizeImage = [UIImage systemImageNamed:@"arrow.up.left.and.arrow.down.right.circle"];
-            UIImageConfiguration *maximizeConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightMedium];
-            self.maximizeButton.image = [maximizeImage imageWithConfiguration:maximizeConfig];
+            UIImage *maximizeImage = [UIImage systemImageNamed:@"arrow.up.left.and.arrow.down.right"];
+            UIImageSymbolConfiguration *maximizeConfig = [UIImageSymbolConfiguration configurationWithPointSize:10.0 weight:UIImageSymbolWeightBold];
+            [self.maximizeButton setImage:[maximizeImage imageWithConfiguration:maximizeConfig] forState:UIControlStateNormal];
         }];
     } else {
         updateSettingsBlock = ^(UIMutableApplicationSceneSettings *settings) {
@@ -316,9 +425,9 @@
             
             [self.view layoutIfNeeded];
         } completion:^(BOOL finished) {
-            UIImage *restoreImage = [UIImage systemImageNamed:@"arrow.down.right.and.arrow.up.left.circle"];
-            UIImageConfiguration *restoreConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightMedium];
-            self.maximizeButton.image = [restoreImage imageWithConfiguration:restoreConfig];
+            UIImage *restoreImage = [UIImage systemImageNamed:@"arrow.down.right.and.arrow.up.left"];
+            UIImageSymbolConfiguration *restoreConfig = [UIImageSymbolConfiguration configurationWithPointSize:10.0 weight:UIImageSymbolWeightBold];
+            [self.maximizeButton setImage:[restoreImage imageWithConfiguration:restoreConfig] forState:UIControlStateNormal];
         }];
     }
 }
@@ -332,9 +441,10 @@
         [dock removeRunningApp:self.dataUUID];
         
         self.view.layer.masksToBounds = NO;
-        [UIView transitionWithView:self.view duration:0.4 options:UIViewAnimationOptionTransitionCurlUp animations:^{
-            self.view.hidden = YES;
-        } completion:^(BOOL b){
+        [UIView animateWithDuration:0.28 delay:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
+            self.view.alpha = 0.0;
+            self.view.transform = CGAffineTransformMakeScale(0.92, 0.92);
+        } completion:^(BOOL finished){
             [self.view removeFromSuperview];
         }];
         
@@ -365,6 +475,10 @@
         } else {
             self.pid = vc.pid;
             [self updateOriginalFrame];
+            [UIView animateWithDuration:0.42 delay:0 usingSpringWithDamping:0.82 initialSpringVelocity:0.35 options:UIViewAnimationOptionBeginFromCurrentState animations:^{
+                self.view.alpha = 1.0;
+                self.view.transform = CGAffineTransformIdentity;
+            } completion:nil];
             if (self.pidAvailableHandler) {
                 self.pidAvailableHandler(@(self.pid), nil);
             }
@@ -389,7 +503,7 @@
         } else {
             [self updateWindowedFrameWithSettings:settings];
         }
-        CGRect newFrame = CGRectMake(0, 0, self.view.bounds.size.width, self.view.bounds.size.height - self.navigationBar.frame.size.height/self.scaleRatio);
+        CGRect newFrame = CGRectMake(0, 0, self.view.bounds.size.width, self.view.bounds.size.height);
         
         if(UIInterfaceOrientationIsLandscape(baseSettings.interfaceOrientation)) {
             settings.frame = CGRectMake(0, 0, newFrame.size.height, newFrame.size.width);
@@ -433,39 +547,71 @@
 
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
-    [self.view layoutIfNeeded];
-    [UIView animateWithDuration:0.3 animations:^{
-        BOOL bottomWindowBar = [change[NSKeyValueChangeNewKey] boolValue];
-        if(bottomWindowBar) {
-            self.navigationItem.leftBarButtonItems = self.navigationItem.rightBarButtonItems;
-            self.navigationItem.rightBarButtonItems = nil;
-            [self.view addArrangedSubview:self.navigationBar];
-        } else {
-            self.navigationItem.rightBarButtonItems = self.navigationItem.leftBarButtonItems;
-            self.navigationItem.leftBarButtonItems = nil;
-            [self.view insertArrangedSubview:self.navigationBar atIndex:0];
-        }
-        
-        [self updateVerticalConstraints];
-        [self adjustNavigationBarButtonSpacingWithNegativeSpacing:-8.0 rightMargin:-4.0];
-        
-        if(_isMaximized) {
-            [self.appSceneVC updateSettingsWithBlock:^(UIMutableApplicationSceneSettings *settings) {
-                [self updateMaximizedFrameWithSettings:settings];
-            }];
-        }
-        [self.view layoutIfNeeded];
-    }];
+    [self updateVerticalConstraints];
+    [self adjustNavigationBarButtonSpacingWithNegativeSpacing:-8.0 rightMargin:-4.0];
+
+    if(_isMaximized) {
+        [self.appSceneVC updateSettingsWithBlock:^(UIMutableApplicationSceneSettings *settings) {
+            [self updateMaximizedFrameWithSettings:settings];
+        }];
+    }
 }
 
 - (void)moveWindow:(UIPanGestureRecognizer*)sender {
-    if(_isMaximized) return;
-    
+    if (sender.state == UIGestureRecognizerStateBegan) {
+        self.toolbarIsManuallyPositioned = YES;
+        if (self.toolbarReturnBlock) {
+            dispatch_block_cancel(self.toolbarReturnBlock);
+            self.toolbarReturnBlock = nil;
+        }
+    }
     CGPoint point = [sender translationInView:self.view];
     [sender setTranslation:CGPointZero inView:self.view];
+    CGRect barFrame = self.navigationBar.frame;
+    barFrame.origin.x += point.x;
+    barFrame.origin.y += point.y;
+    CGRect bounds = self.view.bounds;
+    barFrame.origin.x = MIN(MAX(0.0, barFrame.origin.x), MAX(0.0, CGRectGetWidth(bounds) - CGRectGetWidth(barFrame)));
+    barFrame.origin.y = MIN(MAX(0.0, barFrame.origin.y), MAX(0.0, CGRectGetHeight(bounds) - CGRectGetHeight(barFrame)));
+    self.navigationBar.frame = barFrame;
+    if (sender.state == UIGestureRecognizerStateEnded || sender.state == UIGestureRecognizerStateCancelled) {
+        __weak typeof(self) weakSelf = self;
+        dispatch_block_t returnBlock = dispatch_block_create(0, ^{
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+            if (!strongSelf) return;
+            CGRect target = strongSelf.navigationBar.frame;
+            target.origin.x = (CGRectGetWidth(strongSelf.view.bounds) - CGRectGetWidth(target)) / 2.0;
+            target.origin.y = strongSelf.view.window.safeAreaInsets.top + 6.0;
+            [UIView animateWithDuration:0.45 delay:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
+                strongSelf.navigationBar.frame = target;
+            } completion:nil];
+            strongSelf.toolbarIsManuallyPositioned = NO;
+            strongSelf.toolbarReturnBlock = nil;
+        });
+        self.toolbarReturnBlock = returnBlock;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), returnBlock);
+    }
+}
 
-    self.view.center = CGPointMake(self.view.center.x + point.x, self.view.center.y + point.y);
-    [self updateOriginalFrame];
+
+- (void)hideFloatingToolbar {
+    self.toolbarIsHiddenByUser = YES;
+    self.navigationBar.hidden = YES;
+    self.navigationBar.alpha = 0.0;
+}
+
+- (void)restoreFloatingToolbar {
+    self.toolbarIsHiddenByUser = NO;
+    self.navigationBar.hidden = NO;
+    self.navigationBar.alpha = 1.0;
+}
+
+- (void)toggleFloatingToolbarVisibility {
+    if (self.toolbarIsHiddenByUser) {
+        [self restoreFloatingToolbar];
+    } else {
+        [self hideFloatingToolbar];
+    }
 }
 
 - (void)resizeWindow:(UIPanGestureRecognizer*)sender {
@@ -489,42 +635,40 @@
 
 - (void)updateVerticalConstraints {
     [self.view layoutIfNeeded];
-    [UIView animateWithDuration:0.3 animations:^{
-        BOOL bottomWindowBar = [NSUserDefaults.lcSharedDefaults boolForKey:@"LCMultitaskBottomWindowBar"];
-        BOOL hideWindowBar = MultitaskDockManager.shared.isCollapsed && self.isMaximized;
-        CGFloat navBarHeight = hideWindowBar ? 0 : 44;
-        self.navigationBar.alpha = hideWindowBar ? 0 : 1;
-        self.navigationBar.hidden = hideWindowBar;
-        
-        // Update safe area insets
-        if(self.isMaximized) {
-            self.appSceneVC.shouldSkipDebounceOnce = YES;
-            __weak typeof(self) weakSelf = self;
-            [self.appSceneVC updateSettingsWithBlock:^(UIMutableApplicationSceneSettings *settings) {
-                [weakSelf updateMaximizedFrameWithSettings:settings];
-            }];
-        }
-        
-        [NSLayoutConstraint deactivateConstraints:self.activatedVerticalConstraints];
-        if(bottomWindowBar) {
-            self.activatedVerticalConstraints = @[
-                [self.appSceneVC.view.topAnchor constraintEqualToAnchor:self.view.topAnchor],
-                [self.appSceneVC.view.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor constant:-navBarHeight],
-                [self.navigationBar.heightAnchor constraintEqualToConstant:navBarHeight]
-            ];
-        } else {
-            self.activatedVerticalConstraints = @[
-                [self.appSceneVC.view.topAnchor constraintEqualToAnchor:self.view.topAnchor constant:navBarHeight],
-                [self.appSceneVC.view.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
-                [self.navigationBar.heightAnchor constraintEqualToConstant:navBarHeight]
-            ];
-        }
-        [NSLayoutConstraint activateConstraints:self.activatedVerticalConstraints];
 
-        [self.view layoutIfNeeded];
-    }];
+    BOOL bottomWindowBar = [NSUserDefaults.lcSharedDefaults boolForKey:@"LCMultitaskBottomWindowBar"];
+    // Keep the toolbar reachable below the status bar / Dynamic Island when the app scene is full-screen.
+    CGFloat navBarHeight = 44.0;
+
+    self.navigationBar.alpha = self.toolbarIsHiddenByUser ? 0.0 : 1.0;
+    self.navigationBar.hidden = self.toolbarIsHiddenByUser;
+
+    // Position the toolbar as an overlay only; never alter the app scene's full-window constraints.
+    CGRect navigationBarFrame = CGRectMake(
+        0.0,
+        bottomWindowBar ? MAX(0.0, CGRectGetHeight(self.view.bounds) - self.view.window.safeAreaInsets.bottom - navBarHeight) : self.view.window.safeAreaInsets.top + 6.0,
+        CGRectGetWidth(self.view.bounds),
+        navBarHeight
+    );
+    self.navigationBar.autoresizingMask = UIViewAutoresizingFlexibleWidth |
+        (bottomWindowBar ? UIViewAutoresizingFlexibleTopMargin : UIViewAutoresizingFlexibleBottomMargin);
+
+    if (!self.toolbarIsManuallyPositioned) {
+        [UIView animateWithDuration:0.3 animations:^{
+            self.navigationBar.frame = navigationBarFrame;
+            [self.view layoutIfNeeded];
+        }];
+    }
+
+    // Keep the existing maximized safe-area policy while updating the app's scene frame.
+    if(self.isMaximized) {
+        self.appSceneVC.shouldSkipDebounceOnce = YES;
+        __weak typeof(self) weakSelf = self;
+        [self.appSceneVC updateSettingsWithBlock:^(UIMutableApplicationSceneSettings *settings) {
+            [weakSelf updateMaximizedFrameWithSettings:settings];
+        }];
+    }
 }
-
 - (UIEdgeInsets)updateMaximizedSafeAreaWithSettings:(UIMutableApplicationSceneSettings *)settings {
     BOOL bottomWindowBar = [NSUserDefaults.lcSharedDefaults boolForKey:@"LCMultitaskBottomWindowBar"];
     UIEdgeInsets safeAreaInsets = self.view.window.safeAreaInsets;
@@ -559,7 +703,9 @@
 }
 
 - (void)updateMaximizedFrameWithSettings:(UIMutableApplicationSceneSettings *)settings {
-    CGRect maxFrame = UIEdgeInsetsInsetRect(self.view.window.frame, [self updateMaximizedSafeAreaWithSettings:settings]);
+    settings.peripheryInsets = UIEdgeInsetsZero;
+    settings.safeAreaInsetsPortrait = UIEdgeInsetsZero;
+    CGRect maxFrame = self.view.window.bounds;
     self.view.frame = maxFrame;
 }
 

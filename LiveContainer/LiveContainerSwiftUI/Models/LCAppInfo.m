@@ -175,7 +175,33 @@
     return _info;
 }
 
+- (NSString*)customIconPath {
+    NSString* appId = [self bundleIdentifier];
+    if (!appId || [appId isEqualToString:@"Unknown"]) appId = [_bundlePath lastPathComponent];
+    NSString* safeId = [appId stringByReplacingOccurrencesOfString:@"/" withString:@"_"];
+    NSString* root = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject stringByAppendingPathComponent:@"CustomAppIcons"];
+    NSString* directory = [root stringByAppendingPathComponent:safeId];
+    [NSFileManager.defaultManager createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:nil];
+    NSString* persistentPath = [directory stringByAppendingPathComponent:@"icon.png"];
+    NSString* legacyPath = [_bundlePath stringByAppendingPathComponent:@"LCUserCustomIcon.png"];
+    if (![NSFileManager.defaultManager fileExistsAtPath:persistentPath] && [NSFileManager.defaultManager fileExistsAtPath:legacyPath]) {
+        [NSFileManager.defaultManager copyItemAtPath:legacyPath toPath:persistentPath error:nil];
+    }
+    return persistentPath;
+}
+
 - (UIImage*)iconIsDarkIcon:(BOOL)isDarkIcon {
+    // User-selected icon overrides the generated light/dark icon in LiveContainer.
+    NSString* customIconPath = [self customIconPath];
+    if ([NSFileManager.defaultManager fileExistsAtPath:customIconPath]) {
+        UIImage* customIcon = [UIImage imageWithContentsOfFile:customIconPath];
+        if (customIcon) {
+            _cachedIcon = customIcon;
+            _cachedIconDark = customIcon;
+            return customIcon;
+        }
+    }
+
     // if icon is already loaded in memory, return it
     if(_cachedIcon && !isDarkIcon) {
         return _cachedIcon;

@@ -9,8 +9,27 @@
 
 @implementation VirtualWindowsHostView
 - (instancetype)init {
-    CGRect frame = ((UIWindowScene *)UIApplication.sharedApplication.connectedScenes.anyObject).keyWindow.bounds;
-    self = [super initWithFrame:frame];
+    UIWindow *hostWindow = nil;
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) {
+            continue;
+        }
+        UIWindowScene *windowScene = (UIWindowScene *)scene;
+        UIWindow *candidate = windowScene.keyWindow ?: windowScene.windows.firstObject;
+        if (candidate && scene.activationState == UISceneActivationStateForegroundActive) {
+            hostWindow = candidate;
+            break;
+        }
+        if (!hostWindow && candidate) {
+            hostWindow = candidate;
+        }
+    }
+
+    CGRect initialFrame = hostWindow ? hostWindow.bounds : UIScreen.mainScreen.bounds;
+    self = [super initWithFrame:initialFrame];
+    if (!self) {
+        return nil;
+    }
     self.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     self.shouldForwardTapAction = YES;
     return self;
@@ -19,6 +38,9 @@
     if(!self.shouldForwardTapAction) return NO;
     // grab the frontmost app window, if it's visible pass this event to it
     UIView *frontmostView = self.subviews.lastObject;
+    if(!frontmostView || frontmostView.hidden) {
+        return NO;
+    }
     if(!frontmostView.hidden) {
         DecoratedAppSceneViewController *decoratedVC = (id)frontmostView._viewDelegate;
         [decoratedVC.appSceneVC handleStatusBarTapAction:action];

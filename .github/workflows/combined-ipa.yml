@@ -9,7 +9,7 @@ on:
       - ".github/workflows/combined-ipa.yml"
   push:
     branches:
-      - "fix/sidestore-app-group-entitlements"
+      - "fix/ui-preserving-sidestore-integration"
     paths:
       - "LiveContainer/**"
       - "SideStore-Upstream/**"
@@ -30,6 +30,14 @@ jobs:
 
       - name: Initialize LiveContainer submodules
         run: git -C LiveContainer submodule update --init --recursive
+
+      - name: Verify customized LiveContainer UI and feature sources
+        run: |
+          set -euo pipefail
+          grep -q 'CustomAppIcons' LiveContainer/LiveContainerSwiftUI/Models/LCAppInfo.m
+          grep -q 'customIconSection' LiveContainer/LiveContainerSwiftUI/Views/AppList/AppSettings/LCAppSettingsView.swift
+          grep -q 'Up/down swipes move directly between running container windows' LiveContainer/LiveContainerSwiftUI/MultitaskSupport/MultitaskDockView.swift
+          grep -q 'LongPressGesture' LiveContainer/LiveContainerSwiftUI/MultitaskSupport/MultitaskDockView.swift
 
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1

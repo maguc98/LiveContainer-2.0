@@ -63,6 +63,7 @@ typedef NS_ENUM(NSInteger, MultitaskSpecified){
 - (void)clearIconCache;
 - (NSString*)displayName;
 - (NSString*)bundlePath;
+- (NSString*)customIconPath;
 - (NSString*)bundleIdentifier;
 - (NSString*)version;
 - (NSMutableArray<NSString *>*)urlSchemes;

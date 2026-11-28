@@ -4,7 +4,7 @@
 API_AVAILABLE(ios(16.0))
 @interface DecoratedAppSceneViewController : UIViewController<AppSceneViewControllerDelegate>
 @property(nonatomic) AppSceneViewController* appSceneVC;
-@property(nonatomic) UIStackView *view;
+@property(nonatomic) UIView *view;
 @property(nonatomic) UINavigationBar *navigationBar;
 @property(nonatomic) UINavigationItem *navigationItem;
 @property(nonatomic) UIView *resizeHandle;
@@ -17,6 +17,7 @@ API_AVAILABLE(ios(16.0))
 - (void)minimizeWindowPiP;
 - (void)unminimizeWindowPiP;
 - (void)updateVerticalConstraints;
+- (void)toggleFloatingToolbarVisibility;
 @property(nonatomic, copy) void (^pidAvailableHandler)(NSNumber *pid, NSError *error);
 @end
 
