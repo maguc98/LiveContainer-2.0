@@ -68,14 +68,6 @@ ldid -S.github/sidelc/LiveWidgetExtension_adhoc.xml Payload/LiveContainer.app/Pl
 # Xcode archive runs without provisioning profiles in CI. Add the exact
 # App Groups declared by Global.xcconfig to the Mach-O entitlement payloads so
 # the user's final signing tool can carry them into the installed app.
-GROUP_ENTITLEMENTS=".github/sidelc/LiveContainer_AppGroups_adhoc.xml"
-sign_app_group_entitlements() {
-    local bundle_path="$1"
-    local executable
-    executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$bundle_path/Info.plist")"
-    ldid -S"$GROUP_ENTITLEMENTS" "$bundle_path/$executable"
-}
-
 sign_app_group_entitlements() {
     local bundle_path="$1"
     local entitlements_path="$2"
@@ -133,6 +125,18 @@ for bundle in "Payload/LiveContainer.app" "Payload/LiveContainer.app/PlugIns/Liv
     verify_required_entitlements "$bundle" "com.apple.developer.healthkit"
     verify_required_entitlements "$bundle" "com.apple.developer.kernel.increased-memory-limit"
     verify_required_entitlements "$bundle" "keychain-access-groups"
+    executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$bundle/Info.plist")"
+    extracted="$TMPDIR/$(basename "$bundle").entitlements.plist"
+    ldid -e "$bundle/$executable" > "$extracted"
+    python3 - "$extracted" <<'PY'
+import plistlib, sys
+with open(sys.argv[1], "rb") as source:
+    entitlements = plistlib.load(source)
+groups = entitlements.get("keychain-access-groups", [])
+expected = [f"AAAAA11111.com.kdt.livecontainer.shared" + (f".{i}" if i else "") for i in range(128)]
+if groups != expected:
+    raise SystemExit(f"Expected 128 preserved LiveContainer Keychain groups, found {len(groups)}")
+PY
 done
 
 # Restore framework and package the complete combined app.
