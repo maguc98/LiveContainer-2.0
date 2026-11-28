@@ -77,7 +77,7 @@ verify_app_group_entitlements() {
     local declared_groups
     declared_groups="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups' "$extracted")"
     for expected_group in "$@"; do
-        if ! printf '%s\\n' "$declared_groups" | grep -Fq "$expected_group"; then
+        if ! printf '%s\n' "$declared_groups" | grep -Fq "$expected_group"; then
             echo "Missing App Group entitlement '$expected_group' in $bundle_path/$executable" >&2
             exit 1
         fi
