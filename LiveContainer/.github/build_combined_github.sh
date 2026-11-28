@@ -76,10 +76,18 @@ sign_app_group_entitlements() {
     ldid -S"$GROUP_ENTITLEMENTS" "$bundle_path/$executable"
 }
 
-sign_app_group_entitlements "Payload/LiveContainer.app"
-sign_app_group_entitlements "Payload/LiveContainer.app/PlugIns/LiveProcess.appex"
-sign_app_group_entitlements "Payload/LiveContainer.app/PlugIns/ShareExtension.appex"
-sign_app_group_entitlements "Payload/LiveContainer.app/PlugIns/LaunchAppExtension.appex"
+sign_app_group_entitlements() {
+    local bundle_path="$1"
+    local entitlements_path="$2"
+    local executable
+    executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$bundle_path/Info.plist")"
+    ldid -S"$entitlements_path" "$bundle_path/$executable"
+}
+
+sign_app_group_entitlements "Payload/LiveContainer.app" ".github/sidelc/LiveContainer_Host_adhoc.xml"
+sign_app_group_entitlements "Payload/LiveContainer.app/PlugIns/LiveProcess.appex" ".github/sidelc/LiveProcess_adhoc.xml"
+sign_app_group_entitlements "Payload/LiveContainer.app/PlugIns/ShareExtension.appex" ".github/sidelc/LiveContainer_AppGroups_adhoc.xml"
+sign_app_group_entitlements "Payload/LiveContainer.app/PlugIns/LaunchAppExtension.appex" ".github/sidelc/LiveContainer_AppGroups_adhoc.xml"
 
 # Verify the App Group entitlement payloads are present on all app and extension targets.
 verify_app_group_entitlements() {
@@ -110,6 +118,22 @@ verify_app_group_entitlements "Payload/LiveContainer.app/PlugIns/LaunchAppExtens
     "group.com.SideStore.SideStore" "group.com.rileytestut.AltStore"
 verify_app_group_entitlements "Payload/LiveContainer.app/PlugIns/LiveWidgetExtension.appex" \
     "group.com.SideStore.SideStore"
+
+verify_required_entitlements() {
+    local bundle_path="$1"
+    local expected_key="$2"
+    local executable
+    executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$bundle_path/Info.plist")"
+    local extracted="$TMPDIR/$(basename "$bundle_path").entitlements.plist"
+    ldid -e "$bundle_path/$executable" > "$extracted"
+    /usr/libexec/PlistBuddy -c "Print :$expected_key" "$extracted" >/dev/null
+}
+
+for bundle in "Payload/LiveContainer.app" "Payload/LiveContainer.app/PlugIns/LiveProcess.appex"; do
+    verify_required_entitlements "$bundle" "com.apple.developer.healthkit"
+    verify_required_entitlements "$bundle" "com.apple.developer.kernel.increased-memory-limit"
+    verify_required_entitlements "$bundle" "keychain-access-groups"
+done
 
 # Restore framework and package the complete combined app.
 mv tmp/SideStoreSupport.framework Payload/LiveContainer.app/Frameworks/
