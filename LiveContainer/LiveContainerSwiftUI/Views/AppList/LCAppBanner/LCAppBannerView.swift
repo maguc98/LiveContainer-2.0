@@ -7,7 +7,7 @@ import Foundation
 import UIKit
 
 final class LCAppBannerRootView: UIView {
-    static let bannerHeight: CGFloat = 88
+    static let bannerHeight: CGFloat = 82
 
     let runControl = LCAppBannerRunControl()
 
@@ -42,8 +42,10 @@ final class LCAppBannerRootView: UIView {
     private func setupView() {
         isOpaque = false
         backgroundColor = .clear
-        layer.cornerRadius = 22
+        layer.cornerRadius = 24
         layer.cornerCurve = .continuous
+        layer.borderWidth = 0.55
+        layer.borderColor = UIColor.separator.withAlphaComponent(0.45).cgColor
         clipsToBounds = true
 
         visualBackgroundView.translatesAutoresizingMaskIntoConstraints = false
@@ -52,15 +54,15 @@ final class LCAppBannerRootView: UIView {
 
         iconImageView.translatesAutoresizingMaskIntoConstraints = false
         iconImageView.contentMode = .scaleAspectFit
-        iconImageView.layer.cornerRadius = 16
+        iconImageView.layer.cornerRadius = 17
         iconImageView.layer.cornerCurve = .continuous
         iconImageView.clipsToBounds = true
         iconImageView.isAccessibilityElement = false
 
-        configureLabel(nameLabel, font: .systemFont(ofSize: 16, weight: .bold))
-        configureLabel(versionLabel, font: .systemFont(ofSize: 12))
-        configureLabel(remarkLabel, font: .systemFont(ofSize: 10))
-        configureLabel(containerLabel, font: .systemFont(ofSize: 8))
+        configureLabel(nameLabel, font: .systemFont(ofSize: 17, weight: .semibold))
+        configureLabel(versionLabel, font: .systemFont(ofSize: 12, weight: .medium))
+        configureLabel(remarkLabel, font: .systemFont(ofSize: 11))
+        configureLabel(containerLabel, font: .systemFont(ofSize: 9))
 
         nameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         nameLabel.setContentHuggingPriority(.required, for: .horizontal)
@@ -101,19 +103,19 @@ final class LCAppBannerRootView: UIView {
             visualBackgroundView.topAnchor.constraint(equalTo: topAnchor),
             visualBackgroundView.bottomAnchor.constraint(equalTo: bottomAnchor),
 
-            iconImageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+            iconImageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 15),
             iconImageView.centerYAnchor.constraint(equalTo: centerYAnchor),
-            iconImageView.widthAnchor.constraint(equalToConstant: 60),
-            iconImageView.heightAnchor.constraint(equalToConstant: 60),
+            iconImageView.widthAnchor.constraint(equalToConstant: 54),
+            iconImageView.heightAnchor.constraint(equalToConstant: 54),
 
-            detailStack.leadingAnchor.constraint(equalTo: iconImageView.trailingAnchor, constant: 10),
+            detailStack.leadingAnchor.constraint(equalTo: iconImageView.trailingAnchor, constant: 12),
             detailStack.trailingAnchor.constraint(lessThanOrEqualTo: runControl.leadingAnchor, constant: -10),
             detailStack.centerYAnchor.constraint(equalTo: centerYAnchor),
 
-            runControl.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
+            runControl.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -15),
             runControl.centerYAnchor.constraint(equalTo: centerYAnchor),
-            runControl.widthAnchor.constraint(equalToConstant: 70),
-            runControl.heightAnchor.constraint(equalToConstant: 32)
+            runControl.widthAnchor.constraint(equalToConstant: 66),
+            runControl.heightAnchor.constraint(equalToConstant: 30)
         ])
     }
 
@@ -157,7 +159,7 @@ final class LCAppBannerRootView: UIView {
         bit32Badge.backgroundColor = UIColor(named: "32BitBadgeColor") ?? .systemBlue
 
         visualBackgroundView.backgroundColor = dynamicColors
-            ? mainColor.withAlphaComponent(0.5)
+            ? mainColor.withAlphaComponent(0.13)
             : (UIColor(named: "AppBannerBG") ?? .secondarySystemBackground)
         runControl.update(
             color: accentColor,
