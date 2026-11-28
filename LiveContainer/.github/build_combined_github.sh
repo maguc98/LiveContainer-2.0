@@ -79,8 +79,9 @@ sign_app_group_entitlements() {
 sign_app_group_entitlements "Payload/LiveContainer.app"
 sign_app_group_entitlements "Payload/LiveContainer.app/PlugIns/LiveProcess.appex"
 sign_app_group_entitlements "Payload/LiveContainer.app/PlugIns/ShareExtension.appex"
+sign_app_group_entitlements "Payload/LiveContainer.app/PlugIns/LaunchAppExtension.appex"
 
-# Verify the entitlement payloads embedded by Xcode survived the unsigned IPA assembly.
+# Verify the App Group entitlement payloads are present on all app and extension targets.
 verify_app_group_entitlements() {
     local bundle_path="$1"
     local expected_group
@@ -104,6 +105,8 @@ verify_app_group_entitlements "Payload/LiveContainer.app" \
 verify_app_group_entitlements "Payload/LiveContainer.app/PlugIns/LiveProcess.appex" \
     "group.com.SideStore.SideStore" "group.com.rileytestut.AltStore"
 verify_app_group_entitlements "Payload/LiveContainer.app/PlugIns/ShareExtension.appex" \
+    "group.com.SideStore.SideStore" "group.com.rileytestut.AltStore"
+verify_app_group_entitlements "Payload/LiveContainer.app/PlugIns/LaunchAppExtension.appex" \
     "group.com.SideStore.SideStore" "group.com.rileytestut.AltStore"
 verify_app_group_entitlements "Payload/LiveContainer.app/PlugIns/LiveWidgetExtension.appex" \
     "group.com.SideStore.SideStore"
