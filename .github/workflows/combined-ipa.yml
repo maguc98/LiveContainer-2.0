@@ -44,7 +44,7 @@ jobs:
         with:
           xcode-version: "26.6"
 
-      - name: Build SideStore with ad-hoc entitlement metadata
+      - name: Build SideStore source for iOS device
         run: |
           xcodebuild \
             -project SideStore-Upstream/AltStore.xcodeproj \
@@ -52,9 +52,9 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -derivedDataPath build/SideStoreDerivedData \
-            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_IDENTITY=- \
+            CODE_SIGNING_IDENTITY='' \
             build
           APP_PATH="build/SideStoreDerivedData/Build/Products/Release-iphoneos/SideStore.app"
           test -d "$APP_PATH"
@@ -67,7 +67,7 @@ jobs:
         working-directory: LiveContainer
         run: sh .github/prepare_dependencies.sh
 
-      - name: Archive LiveContainer with ad-hoc entitlement metadata
+      - name: Archive unsigned LiveContainer host for external signing
         working-directory: LiveContainer
         run: |
           xcodebuild archive \
@@ -77,9 +77,9 @@ jobs:
             -sdk iphoneos \
             -arch arm64 \
             -configuration Release \
-            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_IDENTITY=- \
+            CODE_SIGNING_IDENTITY='' \
             archive
 
       - name: Assemble LiveContainer + SideStore IPA

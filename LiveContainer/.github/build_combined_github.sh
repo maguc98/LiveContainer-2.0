@@ -65,6 +65,21 @@ mv Payload/LiveContainer.app/PlugIns/LiveWidgetExtension.appex/AltWidgetExtensio
 find Payload/LiveContainer.app -type d -name _CodeSignature -prune -exec rm -rf {} +
 ldid -S.github/sidelc/LiveWidgetExtension_adhoc.xml Payload/LiveContainer.app/PlugIns/LiveWidgetExtension.appex/LiveWidgetExtension
 
+# Xcode archive runs without provisioning profiles in CI. Add the exact
+# App Groups declared by Global.xcconfig to the Mach-O entitlement payloads so
+# the user's final signing tool can carry them into the installed app.
+GROUP_ENTITLEMENTS=".github/sidelc/LiveContainer_AppGroups_adhoc.xml"
+sign_app_group_entitlements() {
+    local bundle_path="$1"
+    local executable
+    executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$bundle_path/Info.plist")"
+    ldid -S"$GROUP_ENTITLEMENTS" "$bundle_path/$executable"
+}
+
+sign_app_group_entitlements "Payload/LiveContainer.app"
+sign_app_group_entitlements "Payload/LiveContainer.app/PlugIns/LiveProcess.appex"
+sign_app_group_entitlements "Payload/LiveContainer.app/PlugIns/ShareExtension.appex"
+
 # Verify the entitlement payloads embedded by Xcode survived the unsigned IPA assembly.
 verify_app_group_entitlements() {
     local bundle_path="$1"
